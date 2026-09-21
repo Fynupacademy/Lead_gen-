@@ -1,0 +1,10 @@
+project_id = "nxekblochrpjdoqwljgr"
+
+[functions.search-leads]
+verify_jwt = true
+
+[functions.send-emails]
+verify_jwt = true
+
+[functions.preview-email]
+verify_jwt = true
