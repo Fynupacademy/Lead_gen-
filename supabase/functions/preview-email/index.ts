@@ -36,14 +36,18 @@ Deno.serve(async (req) => {
       });
     }
 
-    const generated = await generateEmail(lead.nom, lead.source_requete, lead.service_cible);
+    const generated = await generateEmail(lead.nom, lead.secteur, lead.source_requete, lead.service_cible);
+
+    if (!lead.secteur) {
+      await supabase.from("leads").update({ secteur: generated.secteur }).eq("id", lead.id);
+    }
 
     const body = generated.excluded
       ? "Ce lead est exclu du ciblage (secteur restauration/café/traiteur/bar) — aucun email ne sera généré ni envoyé."
       : generated.body;
 
     return new Response(
-      JSON.stringify({ subject: EMAIL_SUBJECT, body, excluded: generated.excluded, category: generated.category }),
+      JSON.stringify({ subject: EMAIL_SUBJECT, body, excluded: generated.excluded, secteur: generated.secteur }),
       { headers: { ...corsHeaders, "content-type": "application/json" } },
     );
   } catch (e) {

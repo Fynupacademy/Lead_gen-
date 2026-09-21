@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { SERVICE_LABELS, STATUT_LABELS, type Lead } from "../lib/types";
+import { SECTEUR_LABELS, SERVICE_LABELS, STATUT_LABELS, type Lead } from "../lib/types";
 
 function scoreColor(score: number | null): string {
   if (score === null) return "bg-neutral-100 text-neutral-500";
@@ -21,6 +21,7 @@ export default function LeadsScreen({
   const [minScore, setMinScore] = useState(0);
   const [statutFilter, setStatutFilter] = useState<string>("tous");
   const [serviceFilter, setServiceFilter] = useState<string>("tous");
+  const [secteurFilter, setSecteurFilter] = useState<string>("tous");
   const [previewLead, setPreviewLead] = useState<Lead | null>(null);
   const [previewBody, setPreviewBody] = useState("");
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -44,9 +45,15 @@ export default function LeadsScreen({
       if ((l.score_ia ?? 0) < minScore) return false;
       if (statutFilter !== "tous" && l.statut_envoi !== statutFilter) return false;
       if (serviceFilter !== "tous" && l.service_cible !== serviceFilter) return false;
+      if (secteurFilter !== "tous" && l.secteur !== secteurFilter) return false;
       return true;
     });
-  }, [leads, minScore, statutFilter, serviceFilter]);
+  }, [leads, minScore, statutFilter, serviceFilter, secteurFilter]);
+
+  async function changeStatut(id: string, statut: string) {
+    setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, statut_envoi: statut as Lead["statut_envoi"] } : l)));
+    await supabase.from("leads").update({ statut_envoi: statut }).eq("id", id);
+  }
 
   function toggle(id: string) {
     const next = new Set(selected);
@@ -122,6 +129,16 @@ export default function LeadsScreen({
             <option key={k} value={k}>{v}</option>
           ))}
         </select>
+        <select
+          value={secteurFilter}
+          onChange={(e) => setSecteurFilter(e.target.value)}
+          className="rounded-lg border border-neutral-300 px-2 py-1"
+        >
+          <option value="tous">Tous secteurs</option>
+          {Object.entries(SECTEUR_LABELS).map(([k, v]) => (
+            <option key={k} value={k}>{v}</option>
+          ))}
+        </select>
         <button
           onClick={() => selectAllAboveScore(3)}
           className="rounded-lg border border-neutral-300 px-3 py-1 text-neutral-700 hover:bg-neutral-50"
@@ -142,6 +159,7 @@ export default function LeadsScreen({
                 <th className="px-3 py-2">Nom</th>
                 <th className="px-3 py-2">Score</th>
                 <th className="px-3 py-2">Point clé</th>
+                <th className="px-3 py-2">Secteur</th>
                 <th className="px-3 py-2">Service</th>
                 <th className="px-3 py-2">Statut</th>
               </tr>
@@ -171,13 +189,24 @@ export default function LeadsScreen({
                   <td className="max-w-xs truncate px-3 py-2 text-neutral-600" title={lead.point_cle}>
                     {lead.point_cle}
                   </td>
+                  <td className="px-3 py-2 text-neutral-600">{SECTEUR_LABELS[lead.secteur] ?? lead.secteur ?? "?"}</td>
                   <td className="px-3 py-2 text-neutral-600">{SERVICE_LABELS[lead.service_cible] ?? lead.service_cible}</td>
-                  <td className="px-3 py-2 text-neutral-600">{STATUT_LABELS[lead.statut_envoi] ?? lead.statut_envoi}</td>
+                  <td className="px-3 py-2">
+                    <select
+                      value={lead.statut_envoi}
+                      onChange={(e) => changeStatut(lead.id, e.target.value)}
+                      className="rounded-lg border border-neutral-200 bg-transparent px-1.5 py-1 text-xs text-neutral-600"
+                    >
+                      {Object.entries(STATUT_LABELS).map(([k, v]) => (
+                        <option key={k} value={k}>{v}</option>
+                      ))}
+                    </select>
+                  </td>
                 </tr>
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-3 py-6 text-center text-neutral-400">
+                  <td colSpan={7} className="px-3 py-6 text-center text-neutral-400">
                     Aucun lead ne correspond aux filtres.
                   </td>
                 </tr>

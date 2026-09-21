@@ -9,6 +9,7 @@ export interface QualifyResult {
   justification: string;
   point_cle: string;
   service_cible: string;
+  secteur: string;
 }
 
 export async function qualifyLead(lead: LeadRow, icp: string): Promise<QualifyResult> {
@@ -26,7 +27,7 @@ Lead à évaluer :
 - Note Google : ${lead.note_google ?? "n/a"}
 - Signaux détectés sur le site : ${lead.signaux_detectes || "aucun signal collecté"}
 
-Quatre choses à produire :
+Cinq choses à produire :
 
 1. SCORE (1 à 5) : fit avec l'ICP.
 
@@ -45,11 +46,21 @@ Quatre choses à produire :
    PME en croissance sans comptable) / automatisation (tâches répétitives, relances,
    facturation manuelle) / autre (si aucun des trois ne colle clairement).
 
+5. SECTEUR : le secteur d'activité du lead, un seul mot parmi :
+   batiment (peintre, sanitaire, carreleur, électricien, maçon, plâtrier, menuisier, artisan du
+   bâtiment) / alimentaire (boulangerie, boucherie, épicerie, fromagerie, primeur, commerce
+   alimentaire) / personne (coiffure, coiffeur, institut de beauté, salon, esthétique, spa) /
+   exclu (restaurant, café, traiteur, bar — jamais ciblés) / generique (tout le reste : garage,
+   fleuriste, agence immobilière, consultant, salle de sport, petit commerce divers...).
+   Déduis-le du nom et de l'adresse même si la langue est l'allemand ou l'italien (ex:
+   "Bäckerei" = alimentaire, "Friseur" = personne).
+
 Réponds STRICTEMENT au format :
 SCORE: <chiffre>
 JUSTIFICATION: <une phrase>
 POINT_CLE: <une phrase factuelle et vérifiable, ou "aucun point clé fiable disponible">
-SERVICE_CIBLE: <dashboard|cefco|automatisation|autre>`;
+SERVICE_CIBLE: <dashboard|cefco|automatisation|autre>
+SECTEUR: <batiment|alimentaire|personne|exclu|generique>`;
 
   try {
     const text = await callClaude(prompt, 300);
@@ -58,15 +69,17 @@ SERVICE_CIBLE: <dashboard|cefco|automatisation|autre>`;
     const justMatch = text.match(/JUSTIFICATION:\s*(.+)/);
     const pointCleMatch = text.match(/POINT_CLE:\s*(.+)/);
     const serviceMatch = text.match(/SERVICE_CIBLE:\s*(\w+)/i);
+    const secteurMatch = text.match(/SECTEUR:\s*(\w+)/i);
 
     return {
       score: scoreMatch ? Number(scoreMatch[1]) : null,
       justification: justMatch ? justMatch[1].trim() : "",
       point_cle: pointCleMatch ? pointCleMatch[1].trim() : "",
       service_cible: serviceMatch ? serviceMatch[1].toLowerCase() : "autre",
+      secteur: secteurMatch ? secteurMatch[1].toLowerCase() : "generique",
     };
   } catch (e) {
     console.error(`Erreur qualification IA pour ${lead.nom}:`, e);
-    return { score: null, justification: "", point_cle: "", service_cible: "" };
+    return { score: null, justification: "", point_cle: "", service_cible: "", secteur: "" };
   }
 }

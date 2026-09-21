@@ -55,7 +55,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    const generated = await generateEmail(lead.nom, lead.source_requete, lead.service_cible);
+    const generated = await generateEmail(lead.nom, lead.secteur, lead.source_requete, lead.service_cible);
+
+    if (!lead.secteur) {
+      await supabase.from("leads").update({ secteur: generated.secteur }).eq("id", lead.id);
+    }
 
     if (generated.excluded) {
       await supabase.from("leads").update({ statut_envoi: "ignoré" }).eq("id", lead.id);

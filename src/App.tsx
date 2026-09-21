@@ -5,8 +5,9 @@ import Login from "./components/Login";
 import SearchScreen from "./components/SearchScreen";
 import LeadsScreen from "./components/LeadsScreen";
 import SendScreen from "./components/SendScreen";
+import RecapScreen from "./components/RecapScreen";
 
-type Screen = "recherche" | "leads" | "envoi";
+type Screen = "recherche" | "leads" | "envoi" | "recap";
 
 export default function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
@@ -31,6 +32,7 @@ export default function App() {
     { id: "recherche", label: "1. Recherche" },
     { id: "leads", label: "2. Leads" },
     { id: "envoi", label: "3. Envoi" },
+    { id: "recap", label: "4. Récap" },
   ];
 
   return (
@@ -71,6 +73,7 @@ export default function App() {
         {screen === "envoi" && (
           <SendScreen selected={selected} onClearSelected={() => setSelected(new Set())} />
         )}
+        {screen === "recap" && <RecapScreen />}
       </main>
     </div>
   );

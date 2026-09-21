@@ -12,6 +12,7 @@ export interface Lead {
   justification_ia: string;
   point_cle: string;
   service_cible: string;
+  secteur: string;
   source_requete: string;
   statut_envoi: "en_attente" | "envoyé" | "répondu" | "ignoré";
   date_envoi: string | null;
@@ -23,6 +24,14 @@ export const SERVICE_LABELS: Record<string, string> = {
   cefco: "CEFCO / Compta",
   automatisation: "Automatisation",
   autre: "Autre",
+};
+
+export const SECTEUR_LABELS: Record<string, string> = {
+  batiment: "Bâtiment",
+  alimentaire: "Alimentaire",
+  personne: "Coiffure/Beauté",
+  generique: "Générique",
+  exclu: "Exclu (restauration)",
 };
 
 export const STATUT_LABELS: Record<string, string> = {

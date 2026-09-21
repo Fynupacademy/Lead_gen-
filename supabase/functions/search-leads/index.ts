@@ -53,6 +53,7 @@ Deno.serve(async (req) => {
           justification_ia: "",
           point_cle: "",
           service_cible: "",
+          secteur: "",
           source_requete: query,
           statut_envoi: "en_attente",
         });
@@ -76,6 +77,7 @@ Deno.serve(async (req) => {
           justification_ia: "",
           point_cle: "",
           service_cible: "",
+          secteur: "",
           source_requete: query,
           statut_envoi: "en_attente",
         });
@@ -99,6 +101,8 @@ Deno.serve(async (req) => {
       lead.justification_ia = result.justification;
       lead.point_cle = result.point_cle;
       lead.service_cible = result.service_cible;
+      lead.secteur = result.secteur;
+      if (result.secteur === "exclu") lead.statut_envoi = "ignoré";
     }
 
     leads.sort((a, b) => (b.score_ia ?? 0) - (a.score_ia ?? 0));

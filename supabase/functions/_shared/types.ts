@@ -11,6 +11,7 @@ export interface LeadRow {
   justification_ia: string;
   point_cle: string;
   service_cible: string;
+  secteur: string;
   source_requete: string;
   statut_envoi: string;
 }
