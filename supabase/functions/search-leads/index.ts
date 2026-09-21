@@ -102,7 +102,6 @@ Deno.serve(async (req) => {
       lead.point_cle = result.point_cle;
       lead.service_cible = result.service_cible;
       lead.secteur = result.secteur;
-      if (result.secteur === "exclu") lead.statut_envoi = "ignoré";
     }
 
     leads.sort((a, b) => (b.score_ia ?? 0) - (a.score_ia ?? 0));

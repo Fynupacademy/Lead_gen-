@@ -31,7 +31,7 @@ export const SECTEUR_LABELS: Record<string, string> = {
   alimentaire: "Alimentaire",
   personne: "Coiffure/Beauté",
   generique: "Générique",
-  exclu: "Exclu (restauration)",
+  restauration: "Restauration",
 };
 
 export const STATUT_LABELS: Record<string, string> = {

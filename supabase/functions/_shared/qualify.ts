@@ -50,7 +50,7 @@ Cinq choses à produire :
    batiment (peintre, sanitaire, carreleur, électricien, maçon, plâtrier, menuisier, artisan du
    bâtiment) / alimentaire (boulangerie, boucherie, épicerie, fromagerie, primeur, commerce
    alimentaire) / personne (coiffure, coiffeur, institut de beauté, salon, esthétique, spa) /
-   exclu (restaurant, café, traiteur, bar — jamais ciblés) / generique (tout le reste : garage,
+   restauration (restaurant, café, traiteur, bar) / generique (tout le reste : garage,
    fleuriste, agence immobilière, consultant, salle de sport, petit commerce divers...).
    Déduis-le du nom et de l'adresse même si la langue est l'allemand ou l'italien (ex:
    "Bäckerei" = alimentaire, "Friseur" = personne).
@@ -60,7 +60,7 @@ SCORE: <chiffre>
 JUSTIFICATION: <une phrase>
 POINT_CLE: <une phrase factuelle et vérifiable, ou "aucun point clé fiable disponible">
 SERVICE_CIBLE: <dashboard|cefco|automatisation|autre>
-SECTEUR: <batiment|alimentaire|personne|exclu|generique>`;
+SECTEUR: <batiment|alimentaire|personne|restauration|generique>`;
 
   try {
     const text = await callClaude(prompt, 300);

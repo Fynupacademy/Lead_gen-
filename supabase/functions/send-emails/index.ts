@@ -61,18 +61,6 @@ Deno.serve(async (req) => {
       await supabase.from("leads").update({ secteur: generated.secteur }).eq("id", lead.id);
     }
 
-    if (generated.excluded) {
-      await supabase.from("leads").update({ statut_envoi: "ignoré" }).eq("id", lead.id);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          excluded: true,
-          error: "Secteur exclu du ciblage (restauration/café/bar) — email non envoyé.",
-        }),
-        { status: 400, headers: { ...corsHeaders, "content-type": "application/json" } },
-      );
-    }
-
     const body = generated.body;
     const subject = EMAIL_SUBJECT;
 

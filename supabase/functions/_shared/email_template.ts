@@ -14,10 +14,10 @@ export const EMAIL_SUBJECT = "Une présentation rapide de FynUp Consulting";
 
 const SIGNATURE = "Pierre-Olivier\nFynUp Consulting";
 
-export type Secteur = "batiment" | "alimentaire" | "personne" | "generique" | "exclu";
-const KNOWN_SECTEURS: Secteur[] = ["batiment", "alimentaire", "personne", "generique", "exclu"];
+export type Secteur = "batiment" | "alimentaire" | "personne" | "generique" | "restauration";
+const KNOWN_SECTEURS: Secteur[] = ["batiment", "alimentaire", "personne", "generique", "restauration"];
 
-const TEMPLATES: Record<Exclude<Secteur, "exclu">, string> = {
+const TEMPLATES: Record<Secteur, string> = {
   batiment: `Bonjour à toute l'équipe de {{NomEntreprise}},
 
 Je suis Pierre-Olivier, fondateur de FynUp. 20 ans dans l'opérationnel et la gestion d'entreprise, j'accompagne les indépendants et les PME dans leurs projets de gestion et de digitalisation, avec des outils simples que j'utilise moi-même au quotidien.
@@ -65,6 +65,18 @@ J'ai d'autres solutions aussi, vraiment sympas, selon vos besoins. Une courte vi
 Si ça vous intéresse, j'en discute avec plaisir, sans engagement.
 
 ${SIGNATURE}`,
+
+  restauration: `Bonjour à toute l'équipe de {{NomEntreprise}},
+
+Je suis Pierre-Olivier, fondateur de FynUp. 20 ans dans l'opérationnel et la gestion d'entreprise, j'accompagne les indépendants et les PME dans leurs projets de gestion et de digitalisation, avec des outils simples que j'utilise moi-même au quotidien.
+
+Entre les achats, le personnel et le service, difficile de garder un œil sur la rentabilité au jour le jour. J'ai développé une application dashboard sur mesure, qui centralise coûts, marges et chiffre d'affaires en un coup d'œil, avec un volet marketing digital pour remplir la salle les soirs creux.
+
+J'ai d'autres solutions aussi, selon vos besoins. Une courte vidéo vous montre quelques exemples, le reste des informations est sur fynup-consulting.ch.
+
+Si ça vous intéresse, j'en discute avec plaisir, sans engagement.
+
+${SIGNATURE}`,
 };
 
 function classifyPrompt(nom: string, secteurHint: string, serviceCible: string): string {
@@ -80,20 +92,20 @@ Table de routage :
 - batiment : peintre, sanitaire, carreleur, électricien, maçon, plâtrier, menuisier, artisan du bâtiment.
 - alimentaire : boulangerie, boucherie, épicerie, fromagerie, primeur, commerce alimentaire.
 - personne : coiffure, coiffeur, institut de beauté, salon, esthétique, spa (prestations + rendez-vous).
-- exclu : restaurant, café, traiteur, bar — ne jamais cibler ces commerces.
+- restauration : restaurant, café, traiteur, bar.
 - generique : tout le reste (garage, fleuriste, agence immobilière, consultant, salle de sport, petit commerce divers...).
 
 Déduis le secteur à partir du nom de l'entreprise et de la requête source, même si la langue
 est l'allemand ou l'italien (ex: "Bäckerei" = boulangerie = alimentaire, "Friseur" = coiffeur = personne).
 
-Réponds STRICTEMENT avec un seul mot parmi : batiment, alimentaire, personne, exclu, generique.`;
+Réponds STRICTEMENT avec un seul mot parmi : batiment, alimentaire, personne, restauration, generique.`;
 }
 
 async function classifySecteur(nom: string, secteurHint: string, serviceCible: string): Promise<Secteur> {
   if (!Deno.env.get("ANTHROPIC_API_KEY")) return "generique";
   try {
     const raw = await callClaude(classifyPrompt(nom, secteurHint, serviceCible), 10);
-    const match = raw.trim().toLowerCase().match(/batiment|alimentaire|personne|exclu|generique/);
+    const match = raw.trim().toLowerCase().match(/batiment|alimentaire|personne|restauration|generique/);
     return (match?.[0] as Secteur) ?? "generique";
   } catch (e) {
     console.error(`Erreur classification secteur pour ${nom}:`, e);
@@ -101,7 +113,7 @@ async function classifySecteur(nom: string, secteurHint: string, serviceCible: s
   }
 }
 
-function fillTemplate(secteur: Exclude<Secteur, "exclu">, nom: string): string {
+function fillTemplate(secteur: Secteur, nom: string): string {
   let text = TEMPLATES[secteur].replace(/\{\{NomEntreprise\}\}/g, nom);
   // Lien vidéo ajouté en plus de la mention "fynup-consulting.ch" (deux liens distincts), pas
   // codé en dur dans le template — vide si VIDEO_URL n'est pas configuré.
@@ -114,7 +126,6 @@ function fillTemplate(secteur: Exclude<Secteur, "exclu">, nom: string): string {
 }
 
 export interface GeneratedEmail {
-  excluded: boolean;
   body: string;
   secteur: Secteur;
 }
@@ -128,9 +139,5 @@ export async function generateEmail(
   const known = (leadSecteur || "").toLowerCase() as Secteur;
   const secteur = KNOWN_SECTEURS.includes(known) ? known : await classifySecteur(nom, secteurHint, serviceCible);
 
-  if (secteur === "exclu") {
-    return { excluded: true, body: "", secteur };
-  }
-
-  return { excluded: false, body: fillTemplate(secteur, nom), secteur };
+  return { body: fillTemplate(secteur, nom), secteur };
 }
