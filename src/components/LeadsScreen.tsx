@@ -1,8 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { DEFAULT_EMAIL_SUBJECT, SECTEUR_LABELS, SERVICE_LABELS, STATUT_LABELS, type Lead } from "../lib/types";
+import {
+  DEFAULT_EMAIL_SUBJECT,
+  SECTEUR_LABELS,
+  SERVICE_LABELS,
+  STATUT_LABELS,
+  isRelanceEligible,
+  type Lead,
+} from "../lib/types";
 
 const HISTORIQUE = "__historique__";
+const A_RELANCER = "__a_relancer__";
 
 function scoreColor(score: number | null): string {
   if (score === null) return "bg-neutral-100 text-neutral-500";
@@ -31,6 +39,8 @@ export default function LeadsScreen({
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewSaving, setPreviewSaving] = useState(false);
   const [previewSaved, setPreviewSaved] = useState(false);
+  const [relanceSending, setRelanceSending] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
 
   async function loadLeads(setDefaultFilter: boolean) {
     setLoading(true);
@@ -68,7 +78,11 @@ export default function LeadsScreen({
     return leads
       .filter((l) => {
         if ((l.score_ia ?? 0) < minScore) return false;
-        if (statutFilter !== "tous" && l.statut_envoi !== statutFilter) return false;
+        if (statutFilter === A_RELANCER) {
+          if (!isRelanceEligible(l)) return false;
+        } else if (statutFilter !== "tous" && l.statut_envoi !== statutFilter) {
+          return false;
+        }
         if (serviceFilter !== "tous" && l.service_cible !== serviceFilter) return false;
         if (secteurFilter !== "tous" && l.secteur !== secteurFilter) return false;
         if (requeteFilter !== HISTORIQUE && requeteFilter !== "" && l.source_requete !== requeteFilter) return false;
@@ -78,6 +92,8 @@ export default function LeadsScreen({
   }, [leads, minScore, statutFilter, serviceFilter, secteurFilter, requeteFilter]);
 
   const filtered = sortedByScore;
+
+  const relanceEligibleCount = useMemo(() => leads.filter(isRelanceEligible).length, [leads]);
 
   async function changeStatut(id: string, statut: string) {
     setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, statut_envoi: statut as Lead["statut_envoi"] } : l)));
@@ -143,6 +159,49 @@ export default function LeadsScreen({
     setPreviewSaved(true);
   }
 
+  async function sendRelance(lead: Lead) {
+    setRelanceSending((prev) => new Set(prev).add(lead.id));
+    const { data, error } = await supabase.functions.invoke("send-relance", {
+      body: { leadId: lead.id },
+    });
+    setRelanceSending((prev) => {
+      const next = new Set(prev);
+      next.delete(lead.id);
+      return next;
+    });
+    if (error || !data?.success) {
+      alert(`Échec de la relance : ${data?.error || error?.message || "erreur inconnue"}`);
+      return;
+    }
+    setLeads((prev) =>
+      prev.map((l) =>
+        l.id === lead.id ? { ...l, statut_envoi: "relance_envoyee", date_relance: new Date().toISOString() } : l,
+      ),
+    );
+  }
+
+  async function deleteLead(id: string) {
+    if (!confirm("Supprimer ce lead ?")) return;
+    setDeleting(true);
+    await supabase.from("leads").delete().eq("id", id);
+    setLeads((prev) => prev.filter((l) => l.id !== id));
+    const next = new Set(selected);
+    next.delete(id);
+    onSelectedChange(next);
+    setDeleting(false);
+  }
+
+  async function deleteSelected() {
+    if (selected.size === 0) return;
+    if (!confirm(`Supprimer ces ${selected.size} leads ?`)) return;
+    setDeleting(true);
+    const ids = Array.from(selected);
+    await supabase.from("leads").delete().in("id", ids);
+    setLeads((prev) => prev.filter((l) => !selected.has(l.id)));
+    onSelectedChange(new Set());
+    setDeleting(false);
+  }
+
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -184,6 +243,9 @@ export default function LeadsScreen({
             className="rounded-lg border border-neutral-300 px-2 py-1.5"
           >
             <option value="tous">Tous statuts</option>
+            {relanceEligibleCount > 0 && (
+              <option value={A_RELANCER}>À relancer (7j+, {relanceEligibleCount})</option>
+            )}
             {Object.entries(STATUT_LABELS).map(([k, v]) => (
               <option key={k} value={k}>{v}</option>
             ))}
@@ -216,6 +278,15 @@ export default function LeadsScreen({
           >
             Sélectionner score ≥ 3
           </button>
+          {selected.size > 0 && (
+            <button
+              onClick={deleteSelected}
+              disabled={deleting}
+              className="rounded-lg border border-red-300 px-3 py-1.5 text-red-600 hover:bg-red-50 disabled:opacity-50"
+            >
+              Supprimer la sélection ({selected.size})
+            </button>
+          )}
           <span className="text-neutral-500">{selected.size} sélectionné(s)</span>
         </div>
       </div>
@@ -236,11 +307,12 @@ export default function LeadsScreen({
                   <th className="px-3 py-2">Secteur</th>
                   <th className="px-3 py-2">Service</th>
                   <th className="px-3 py-2">Statut</th>
+                  <th className="px-3 py-2"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
                 {filtered.map((lead) => (
-                  <tr key={lead.id} className="hover:bg-neutral-50">
+                  <tr key={lead.id} className="group hover:bg-neutral-50">
                     <td className="px-3 py-2">
                       <input
                         type="checkbox"
@@ -266,21 +338,42 @@ export default function LeadsScreen({
                     <td className="px-3 py-2 text-neutral-600">{SECTEUR_LABELS[lead.secteur] ?? lead.secteur ?? "?"}</td>
                     <td className="px-3 py-2 text-neutral-600">{SERVICE_LABELS[lead.service_cible] ?? lead.service_cible}</td>
                     <td className="px-3 py-2">
-                      <select
-                        value={lead.statut_envoi}
-                        onChange={(e) => changeStatut(lead.id, e.target.value)}
-                        className="rounded-lg border border-neutral-200 bg-transparent px-1.5 py-1 text-xs text-neutral-600"
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={lead.statut_envoi}
+                          onChange={(e) => changeStatut(lead.id, e.target.value)}
+                          className="rounded-lg border border-neutral-200 bg-transparent px-1.5 py-1 text-xs text-neutral-600"
+                        >
+                          {Object.entries(STATUT_LABELS).map(([k, v]) => (
+                            <option key={k} value={k}>{v}</option>
+                          ))}
+                        </select>
+                        {isRelanceEligible(lead) && (
+                          <button
+                            onClick={() => sendRelance(lead)}
+                            disabled={relanceSending.has(lead.id)}
+                            className="rounded-lg border border-amber-300 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+                          >
+                            {relanceSending.has(lead.id) ? "Envoi..." : "Relancer"}
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-3 py-2">
+                      <button
+                        onClick={() => deleteLead(lead.id)}
+                        disabled={deleting}
+                        className="text-neutral-300 opacity-0 hover:text-red-600 group-hover:opacity-100 disabled:opacity-50"
+                        title="Supprimer ce lead"
                       >
-                        {Object.entries(STATUT_LABELS).map(([k, v]) => (
-                          <option key={k} value={k}>{v}</option>
-                        ))}
-                      </select>
+                        ✕
+                      </button>
                     </td>
                   </tr>
                 ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-3 py-6 text-center text-neutral-400">
+                    <td colSpan={8} className="px-3 py-6 text-center text-neutral-400">
                       Aucun lead ne correspond aux filtres.
                     </td>
                   </tr>
@@ -307,9 +400,19 @@ export default function LeadsScreen({
                     onChange={() => toggle(lead.id)}
                   />
                   <div className="min-w-0 flex-1">
-                    <button onClick={() => openPreview(lead)} className="text-left font-medium text-neutral-900">
-                      {lead.nom}
-                    </button>
+                    <div className="flex items-start justify-between gap-2">
+                      <button onClick={() => openPreview(lead)} className="text-left font-medium text-neutral-900">
+                        {lead.nom}
+                      </button>
+                      <button
+                        onClick={() => deleteLead(lead.id)}
+                        disabled={deleting}
+                        className="shrink-0 px-2 py-1 text-lg leading-none text-neutral-400 disabled:opacity-50"
+                        title="Supprimer ce lead"
+                      >
+                        ✕
+                      </button>
+                    </div>
                     <div className="text-xs text-neutral-400">{lead.email || "pas d'email"}</div>
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${scoreColor(lead.score_ia)}`}>
@@ -332,6 +435,15 @@ export default function LeadsScreen({
                         <option key={k} value={k}>{v}</option>
                       ))}
                     </select>
+                    {isRelanceEligible(lead) && (
+                      <button
+                        onClick={() => sendRelance(lead)}
+                        disabled={relanceSending.has(lead.id)}
+                        className="mt-2 w-full rounded-lg border border-amber-300 bg-amber-50 px-2 py-2 text-sm font-medium text-amber-700 disabled:opacity-50"
+                      >
+                        {relanceSending.has(lead.id) ? "Envoi..." : "Envoyer la relance"}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

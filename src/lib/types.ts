@@ -14,8 +14,9 @@ export interface Lead {
   service_cible: string;
   secteur: string;
   source_requete: string;
-  statut_envoi: "en_attente" | "envoyé" | "répondu" | "ignoré";
+  statut_envoi: "en_attente" | "envoyé" | "répondu" | "ignoré" | "relance_envoyee";
   date_envoi: string | null;
+  date_relance: string | null;
   email_override_subject: string;
   email_override_body: string;
   created_at: string;
@@ -43,4 +44,15 @@ export const STATUT_LABELS: Record<string, string> = {
   envoyé: "Envoyé",
   répondu: "Répondu",
   ignoré: "Ignoré",
+  relance_envoyee: "Relancé",
 };
+
+export const RELANCE_DELAI_MS = 7 * 24 * 60 * 60 * 1000;
+
+export function isRelanceEligible(lead: Pick<Lead, "statut_envoi" | "date_envoi">): boolean {
+  return (
+    lead.statut_envoi === "envoyé" &&
+    !!lead.date_envoi &&
+    Date.now() - new Date(lead.date_envoi).getTime() >= RELANCE_DELAI_MS
+  );
+}

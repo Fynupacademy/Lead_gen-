@@ -130,6 +130,25 @@ export interface GeneratedEmail {
   secteur: Secteur;
 }
 
+export const RELANCE_SUBJECT = "Petite relance - FynUp Consulting";
+
+const RELANCE_TEMPLATE = `Bonjour à toute l'équipe de {{NomEntreprise}},
+
+Je me permets de revenir vers vous, au sujet des outils de gestion dont je vous parlais. C'est mon quotidien, je serais ravi de vous montrer où vous pourriez gagner du temps et de l'argent.
+
+Ça vous dit qu'on en parle ?
+
+${SIGNATURE}`;
+
+// Relance courte, un seul template déterministe (pas de variation par secteur, pas d'appel à
+// Claude) — même logique que les templates initiaux : texte validé mot pour mot par
+// Pierre-Olivier, pas de paraphrase possible.
+export function generateRelance(nom: string): string {
+  let text = RELANCE_TEMPLATE.replace(/\{\{NomEntreprise\}\}/g, nom);
+  text = text.replace(/—/g, ",");
+  return text;
+}
+
 export async function generateEmail(
   nom: string,
   leadSecteur: string,
