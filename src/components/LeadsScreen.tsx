@@ -41,6 +41,8 @@ export default function LeadsScreen({
   const [previewSaved, setPreviewSaved] = useState(false);
   const [relanceSending, setRelanceSending] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
+  const [editingEmailId, setEditingEmailId] = useState<string | null>(null);
+  const [editingEmailValue, setEditingEmailValue] = useState("");
 
   async function loadLeads(setDefaultFilter: boolean) {
     setLoading(true);
@@ -202,6 +204,18 @@ export default function LeadsScreen({
     setDeleting(false);
   }
 
+  function startEditEmail(lead: Lead) {
+    setEditingEmailId(lead.id);
+    setEditingEmailValue(lead.email);
+  }
+
+  async function saveEmail(id: string) {
+    const email = editingEmailValue.trim();
+    setEditingEmailId(null);
+    setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, email } : l)));
+    await supabase.from("leads").update({ email }).eq("id", id);
+  }
+
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -325,7 +339,34 @@ export default function LeadsScreen({
                       <button onClick={() => openPreview(lead)} className="font-medium text-neutral-900 hover:underline">
                         {lead.nom}
                       </button>
-                      <div className="text-xs text-neutral-400">{lead.email || "pas d'email"}</div>
+                      {editingEmailId === lead.id ? (
+                        <div className="mt-0.5 flex items-center gap-1">
+                          <input
+                            type="email"
+                            autoFocus
+                            value={editingEmailValue}
+                            onChange={(e) => setEditingEmailValue(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") saveEmail(lead.id);
+                              if (e.key === "Escape") setEditingEmailId(null);
+                            }}
+                            className="w-40 rounded border border-neutral-300 px-1 py-0.5 text-xs"
+                          />
+                          <button onClick={() => saveEmail(lead.id)} className="text-xs text-emerald-600" title="Enregistrer">
+                            ✓
+                          </button>
+                          <button onClick={() => setEditingEmailId(null)} className="text-xs text-neutral-400" title="Annuler">
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => startEditEmail(lead)}
+                          className="block text-xs text-neutral-400 hover:text-neutral-700 hover:underline"
+                        >
+                          {lead.email || "+ ajouter un email"}
+                        </button>
+                      )}
                     </td>
                     <td className="px-3 py-2">
                       <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${scoreColor(lead.score_ia)}`}>
@@ -413,7 +454,34 @@ export default function LeadsScreen({
                         ✕
                       </button>
                     </div>
-                    <div className="text-xs text-neutral-400">{lead.email || "pas d'email"}</div>
+                    {editingEmailId === lead.id ? (
+                      <div className="mt-1 flex items-center gap-2">
+                        <input
+                          type="email"
+                          autoFocus
+                          value={editingEmailValue}
+                          onChange={(e) => setEditingEmailValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") saveEmail(lead.id);
+                            if (e.key === "Escape") setEditingEmailId(null);
+                          }}
+                          className="min-w-0 flex-1 rounded border border-neutral-300 px-2 py-1 text-sm"
+                        />
+                        <button onClick={() => saveEmail(lead.id)} className="text-emerald-600" title="Enregistrer">
+                          ✓
+                        </button>
+                        <button onClick={() => setEditingEmailId(null)} className="text-neutral-400" title="Annuler">
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => startEditEmail(lead)}
+                        className="block text-xs text-neutral-400"
+                      >
+                        {lead.email || "+ ajouter un email"}
+                      </button>
+                    )}
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${scoreColor(lead.score_ia)}`}>
                         {lead.score_ia ?? "?"}/5
