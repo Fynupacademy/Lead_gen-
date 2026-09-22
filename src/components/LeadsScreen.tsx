@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { SECTEUR_LABELS, SERVICE_LABELS, STATUT_LABELS, type Lead } from "../lib/types";
+import { DEFAULT_EMAIL_SUBJECT, SECTEUR_LABELS, SERVICE_LABELS, STATUT_LABELS, type Lead } from "../lib/types";
+
+const HISTORIQUE = "__historique__";
 
 function scoreColor(score: number | null): string {
   if (score === null) return "bg-neutral-100 text-neutral-500";
@@ -22,33 +24,60 @@ export default function LeadsScreen({
   const [statutFilter, setStatutFilter] = useState<string>("tous");
   const [serviceFilter, setServiceFilter] = useState<string>("tous");
   const [secteurFilter, setSecteurFilter] = useState<string>("tous");
+  const [requeteFilter, setRequeteFilter] = useState<string>("");
   const [previewLead, setPreviewLead] = useState<Lead | null>(null);
+  const [previewSubject, setPreviewSubject] = useState("");
   const [previewBody, setPreviewBody] = useState("");
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewSaving, setPreviewSaving] = useState(false);
+  const [previewSaved, setPreviewSaved] = useState(false);
 
-  async function loadLeads() {
+  async function loadLeads(setDefaultFilter: boolean) {
     setLoading(true);
     const { data } = await supabase
       .from("leads")
       .select("*")
-      .order("score_ia", { ascending: false, nullsFirst: false });
-    setLeads(data ?? []);
+      .order("created_at", { ascending: false });
+    const rows = data ?? [];
+    setLeads(rows);
     setLoading(false);
+    // Par défaut, n'afficher que la recherche la plus récente (pas tout l'historique cumulé
+    // depuis le début), sauf si l'utilisateur a déjà choisi un filtre explicitement.
+    if (setDefaultFilter && rows.length > 0) {
+      setRequeteFilter(rows[0].source_requete);
+    }
   }
 
   useEffect(() => {
-    loadLeads();
+    loadLeads(true);
   }, []);
 
-  const filtered = useMemo(() => {
-    return leads.filter((l) => {
-      if ((l.score_ia ?? 0) < minScore) return false;
-      if (statutFilter !== "tous" && l.statut_envoi !== statutFilter) return false;
-      if (serviceFilter !== "tous" && l.service_cible !== serviceFilter) return false;
-      if (secteurFilter !== "tous" && l.secteur !== secteurFilter) return false;
-      return true;
-    });
-  }, [leads, minScore, statutFilter, serviceFilter, secteurFilter]);
+  const requetes = useMemo(() => {
+    const seen = new Map<string, string>(); // requete -> created_at le plus récent
+    for (const l of leads) {
+      if (!seen.has(l.source_requete) || l.created_at > seen.get(l.source_requete)!) {
+        seen.set(l.source_requete, l.created_at);
+      }
+    }
+    return Array.from(seen.entries())
+      .sort((a, b) => (a[1] < b[1] ? 1 : -1))
+      .map(([requete]) => requete);
+  }, [leads]);
+
+  const sortedByScore = useMemo(() => {
+    return leads
+      .filter((l) => {
+        if ((l.score_ia ?? 0) < minScore) return false;
+        if (statutFilter !== "tous" && l.statut_envoi !== statutFilter) return false;
+        if (serviceFilter !== "tous" && l.service_cible !== serviceFilter) return false;
+        if (secteurFilter !== "tous" && l.secteur !== secteurFilter) return false;
+        if (requeteFilter !== HISTORIQUE && requeteFilter !== "" && l.source_requete !== requeteFilter) return false;
+        return true;
+      })
+      .sort((a, b) => (b.score_ia ?? 0) - (a.score_ia ?? 0));
+  }, [leads, minScore, statutFilter, serviceFilter, secteurFilter, requeteFilter]);
+
+  const filtered = sortedByScore;
 
   async function changeStatut(id: string, statut: string) {
     setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, statut_envoi: statut as Lead["statut_envoi"] } : l)));
@@ -72,6 +101,15 @@ export default function LeadsScreen({
 
   async function openPreview(lead: Lead) {
     setPreviewLead(lead);
+    setPreviewSaved(false);
+    // Un texte déjà édité et sauvegardé reste affiché tel quel, sans regénérer via Claude.
+    if (lead.email_override_body) {
+      setPreviewSubject(lead.email_override_subject || DEFAULT_EMAIL_SUBJECT);
+      setPreviewBody(lead.email_override_body);
+      setPreviewLoading(false);
+      return;
+    }
+    setPreviewSubject(DEFAULT_EMAIL_SUBJECT);
     setPreviewBody("");
     setPreviewLoading(true);
     const { data, error } = await supabase.functions.invoke("preview-email", {
@@ -82,143 +120,229 @@ export default function LeadsScreen({
       setPreviewBody(`Erreur : ${error.message}`);
       return;
     }
+    setPreviewSubject(data?.subject || DEFAULT_EMAIL_SUBJECT);
     setPreviewBody(data?.body ?? data?.error ?? "");
+  }
+
+  async function savePreview() {
+    if (!previewLead) return;
+    setPreviewSaving(true);
+    const subjectOverride = previewSubject === DEFAULT_EMAIL_SUBJECT ? "" : previewSubject;
+    await supabase
+      .from("leads")
+      .update({ email_override_subject: subjectOverride, email_override_body: previewBody })
+      .eq("id", previewLead.id);
+    setLeads((prev) =>
+      prev.map((l) =>
+        l.id === previewLead.id
+          ? { ...l, email_override_subject: subjectOverride, email_override_body: previewBody }
+          : l,
+      ),
+    );
+    setPreviewSaving(false);
+    setPreviewSaved(true);
   }
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-semibold text-neutral-900">Leads ({filtered.length})</h2>
         <button
-          onClick={loadLeads}
+          onClick={() => loadLeads(false)}
           className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50"
         >
           Rafraîchir
         </button>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
-        <label className="flex items-center gap-2">
-          Score min.
-          <input
-            type="number"
-            min={0}
-            max={5}
-            value={minScore}
-            onChange={(e) => setMinScore(Number(e.target.value))}
-            className="w-16 rounded-lg border border-neutral-300 px-2 py-1"
-          />
-        </label>
+      <div className="mt-4 flex flex-col gap-3 text-sm sm:flex-row sm:flex-wrap sm:items-center">
         <select
-          value={statutFilter}
-          onChange={(e) => setStatutFilter(e.target.value)}
-          className="rounded-lg border border-neutral-300 px-2 py-1"
+          value={requeteFilter === HISTORIQUE ? HISTORIQUE : requeteFilter}
+          onChange={(e) => setRequeteFilter(e.target.value)}
+          className="w-full rounded-lg border border-neutral-300 px-2 py-1.5 sm:w-auto"
         >
-          <option value="tous">Tous statuts</option>
-          {Object.entries(STATUT_LABELS).map(([k, v]) => (
-            <option key={k} value={k}>{v}</option>
+          {requetes.map((r) => (
+            <option key={r} value={r}>{r}</option>
           ))}
+          <option value={HISTORIQUE}>Tout l'historique</option>
         </select>
-        <select
-          value={serviceFilter}
-          onChange={(e) => setServiceFilter(e.target.value)}
-          className="rounded-lg border border-neutral-300 px-2 py-1"
-        >
-          <option value="tous">Tous services</option>
-          {Object.entries(SERVICE_LABELS).map(([k, v]) => (
-            <option key={k} value={k}>{v}</option>
-          ))}
-        </select>
-        <select
-          value={secteurFilter}
-          onChange={(e) => setSecteurFilter(e.target.value)}
-          className="rounded-lg border border-neutral-300 px-2 py-1"
-        >
-          <option value="tous">Tous secteurs</option>
-          {Object.entries(SECTEUR_LABELS).map(([k, v]) => (
-            <option key={k} value={k}>{v}</option>
-          ))}
-        </select>
-        <button
-          onClick={() => selectAllAboveScore(3)}
-          className="rounded-lg border border-neutral-300 px-3 py-1 text-neutral-700 hover:bg-neutral-50"
-        >
-          Sélectionner score ≥ 3
-        </button>
-        <span className="text-neutral-500">{selected.size} sélectionné(s)</span>
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2">
+            Score min.
+            <input
+              type="number"
+              min={0}
+              max={5}
+              value={minScore}
+              onChange={(e) => setMinScore(Number(e.target.value))}
+              className="w-16 rounded-lg border border-neutral-300 px-2 py-1.5"
+            />
+          </label>
+          <select
+            value={statutFilter}
+            onChange={(e) => setStatutFilter(e.target.value)}
+            className="rounded-lg border border-neutral-300 px-2 py-1.5"
+          >
+            <option value="tous">Tous statuts</option>
+            {Object.entries(STATUT_LABELS).map(([k, v]) => (
+              <option key={k} value={k}>{v}</option>
+            ))}
+          </select>
+          <select
+            value={serviceFilter}
+            onChange={(e) => setServiceFilter(e.target.value)}
+            className="rounded-lg border border-neutral-300 px-2 py-1.5"
+          >
+            <option value="tous">Tous services</option>
+            {Object.entries(SERVICE_LABELS).map(([k, v]) => (
+              <option key={k} value={k}>{v}</option>
+            ))}
+          </select>
+          <select
+            value={secteurFilter}
+            onChange={(e) => setSecteurFilter(e.target.value)}
+            className="rounded-lg border border-neutral-300 px-2 py-1.5"
+          >
+            <option value="tous">Tous secteurs</option>
+            {Object.entries(SECTEUR_LABELS).map(([k, v]) => (
+              <option key={k} value={k}>{v}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={() => selectAllAboveScore(3)}
+            className="rounded-lg border border-neutral-300 px-3 py-1.5 text-neutral-700 hover:bg-neutral-50"
+          >
+            Sélectionner score ≥ 3
+          </button>
+          <span className="text-neutral-500">{selected.size} sélectionné(s)</span>
+        </div>
       </div>
 
       {loading ? (
         <p className="mt-6 text-sm text-neutral-500">Chargement...</p>
       ) : (
-        <div className="mt-4 overflow-x-auto rounded-xl border border-neutral-200">
-          <table className="min-w-full divide-y divide-neutral-200 text-sm">
-            <thead className="bg-neutral-50 text-left text-xs font-medium uppercase text-neutral-500">
-              <tr>
-                <th className="px-3 py-2"></th>
-                <th className="px-3 py-2">Nom</th>
-                <th className="px-3 py-2">Score</th>
-                <th className="px-3 py-2">Point clé</th>
-                <th className="px-3 py-2">Secteur</th>
-                <th className="px-3 py-2">Service</th>
-                <th className="px-3 py-2">Statut</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-100">
-              {filtered.map((lead) => (
-                <tr key={lead.id} className="hover:bg-neutral-50">
-                  <td className="px-3 py-2">
-                    <input
-                      type="checkbox"
-                      checked={selected.has(lead.id)}
-                      disabled={lead.statut_envoi !== "en_attente" || !lead.email}
-                      onChange={() => toggle(lead.id)}
-                    />
-                  </td>
-                  <td className="px-3 py-2">
-                    <button onClick={() => openPreview(lead)} className="font-medium text-neutral-900 hover:underline">
+        <>
+          {/* Vue tableau — masquée sur mobile */}
+          <div className="mt-4 hidden overflow-x-auto rounded-xl border border-neutral-200 sm:block">
+            <table className="min-w-full divide-y divide-neutral-200 text-sm">
+              <thead className="bg-neutral-50 text-left text-xs font-medium uppercase text-neutral-500">
+                <tr>
+                  <th className="px-3 py-2"></th>
+                  <th className="px-3 py-2">Nom</th>
+                  <th className="px-3 py-2">Score</th>
+                  <th className="px-3 py-2">Point clé</th>
+                  <th className="px-3 py-2">Secteur</th>
+                  <th className="px-3 py-2">Service</th>
+                  <th className="px-3 py-2">Statut</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-100">
+                {filtered.map((lead) => (
+                  <tr key={lead.id} className="hover:bg-neutral-50">
+                    <td className="px-3 py-2">
+                      <input
+                        type="checkbox"
+                        checked={selected.has(lead.id)}
+                        disabled={lead.statut_envoi !== "en_attente" || !lead.email}
+                        onChange={() => toggle(lead.id)}
+                      />
+                    </td>
+                    <td className="px-3 py-2">
+                      <button onClick={() => openPreview(lead)} className="font-medium text-neutral-900 hover:underline">
+                        {lead.nom}
+                      </button>
+                      <div className="text-xs text-neutral-400">{lead.email || "pas d'email"}</div>
+                    </td>
+                    <td className="px-3 py-2">
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${scoreColor(lead.score_ia)}`}>
+                        {lead.score_ia ?? "?"}/5
+                      </span>
+                    </td>
+                    <td className="max-w-xs truncate px-3 py-2 text-neutral-600" title={lead.point_cle}>
+                      {lead.point_cle}
+                    </td>
+                    <td className="px-3 py-2 text-neutral-600">{SECTEUR_LABELS[lead.secteur] ?? lead.secteur ?? "?"}</td>
+                    <td className="px-3 py-2 text-neutral-600">{SERVICE_LABELS[lead.service_cible] ?? lead.service_cible}</td>
+                    <td className="px-3 py-2">
+                      <select
+                        value={lead.statut_envoi}
+                        onChange={(e) => changeStatut(lead.id, e.target.value)}
+                        className="rounded-lg border border-neutral-200 bg-transparent px-1.5 py-1 text-xs text-neutral-600"
+                      >
+                        {Object.entries(STATUT_LABELS).map(([k, v]) => (
+                          <option key={k} value={k}>{v}</option>
+                        ))}
+                      </select>
+                    </td>
+                  </tr>
+                ))}
+                {filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-3 py-6 text-center text-neutral-400">
+                      Aucun lead ne correspond aux filtres.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Vue cartes — mobile uniquement */}
+          <div className="mt-4 space-y-3 sm:hidden">
+            {filtered.length === 0 && (
+              <p className="rounded-xl border border-neutral-200 py-6 text-center text-sm text-neutral-400">
+                Aucun lead ne correspond aux filtres.
+              </p>
+            )}
+            {filtered.map((lead) => (
+              <div key={lead.id} className="rounded-xl border border-neutral-200 bg-white p-4">
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-5 w-5 shrink-0"
+                    checked={selected.has(lead.id)}
+                    disabled={lead.statut_envoi !== "en_attente" || !lead.email}
+                    onChange={() => toggle(lead.id)}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <button onClick={() => openPreview(lead)} className="text-left font-medium text-neutral-900">
                       {lead.nom}
                     </button>
                     <div className="text-xs text-neutral-400">{lead.email || "pas d'email"}</div>
-                  </td>
-                  <td className="px-3 py-2">
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${scoreColor(lead.score_ia)}`}>
-                      {lead.score_ia ?? "?"}/5
-                    </span>
-                  </td>
-                  <td className="max-w-xs truncate px-3 py-2 text-neutral-600" title={lead.point_cle}>
-                    {lead.point_cle}
-                  </td>
-                  <td className="px-3 py-2 text-neutral-600">{SECTEUR_LABELS[lead.secteur] ?? lead.secteur ?? "?"}</td>
-                  <td className="px-3 py-2 text-neutral-600">{SERVICE_LABELS[lead.service_cible] ?? lead.service_cible}</td>
-                  <td className="px-3 py-2">
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${scoreColor(lead.score_ia)}`}>
+                        {lead.score_ia ?? "?"}/5
+                      </span>
+                      <span className="text-xs text-neutral-500">
+                        {SECTEUR_LABELS[lead.secteur] ?? lead.secteur ?? "?"}
+                      </span>
+                      <span className="text-xs text-neutral-500">
+                        {SERVICE_LABELS[lead.service_cible] ?? lead.service_cible}
+                      </span>
+                    </div>
+                    {lead.point_cle && <p className="mt-2 text-xs text-neutral-600">{lead.point_cle}</p>}
                     <select
                       value={lead.statut_envoi}
                       onChange={(e) => changeStatut(lead.id, e.target.value)}
-                      className="rounded-lg border border-neutral-200 bg-transparent px-1.5 py-1 text-xs text-neutral-600"
+                      className="mt-3 w-full rounded-lg border border-neutral-200 px-2 py-2 text-sm text-neutral-600"
                     >
                       {Object.entries(STATUT_LABELS).map(([k, v]) => (
                         <option key={k} value={k}>{v}</option>
                       ))}
                     </select>
-                  </td>
-                </tr>
-              ))}
-              {filtered.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="px-3 py-6 text-center text-neutral-400">
-                    Aucun lead ne correspond aux filtres.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       {previewLead && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/30 p-4">
-          <div className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-6 shadow-lg">
+          <div className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-6 shadow-lg">
             <div className="flex items-start justify-between">
               <h3 className="font-semibold text-neutral-900">Aperçu — {previewLead.nom}</h3>
               <button onClick={() => setPreviewLead(null)} className="text-neutral-400 hover:text-neutral-700">
@@ -228,7 +352,41 @@ export default function LeadsScreen({
             {previewLoading ? (
               <p className="mt-4 text-sm text-neutral-500">Génération en cours...</p>
             ) : (
-              <pre className="mt-4 whitespace-pre-wrap font-sans text-sm text-neutral-800">{previewBody}</pre>
+              <div className="mt-4 space-y-3">
+                <div>
+                  <label className="block text-xs font-medium uppercase text-neutral-500">Objet</label>
+                  <input
+                    value={previewSubject}
+                    onChange={(e) => {
+                      setPreviewSubject(e.target.value);
+                      setPreviewSaved(false);
+                    }}
+                    className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium uppercase text-neutral-500">Corps du message</label>
+                  <textarea
+                    value={previewBody}
+                    onChange={(e) => {
+                      setPreviewBody(e.target.value);
+                      setPreviewSaved(false);
+                    }}
+                    rows={12}
+                    className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-500"
+                  />
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={savePreview}
+                    disabled={previewSaving}
+                    className="rounded-lg bg-neutral-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+                  >
+                    {previewSaving ? "Enregistrement..." : "Enregistrer les modifications"}
+                  </button>
+                  {previewSaved && <span className="text-sm text-emerald-600">Enregistré — utilisé à l'envoi.</span>}
+                </div>
+              </div>
             )}
           </div>
         </div>

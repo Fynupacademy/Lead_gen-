@@ -40,6 +40,20 @@ export interface PlaceResult {
   telephone: string;
 }
 
+async function geocode(query: string): Promise<{ lat: number; lng: number } | null> {
+  if (!GOOGLE_API_KEY) return null;
+  try {
+    const params = new URLSearchParams({ address: query, key: GOOGLE_API_KEY });
+    const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?${params}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const loc = data.results?.[0]?.geometry?.location;
+    return loc ? { lat: loc.lat, lng: loc.lng } : null;
+  } catch {
+    return null;
+  }
+}
+
 async function placeDetails(placeId: string): Promise<{ phone: string; website: string }> {
   const params = new URLSearchParams({
     place_id: placeId,
@@ -59,14 +73,27 @@ async function placeDetails(placeId: string): Promise<{ phone: string; website: 
   }
 }
 
-export async function googlePlacesSearch(query: string, maxResults: number): Promise<PlaceResult[]> {
+export async function googlePlacesSearch(
+  query: string,
+  maxResults: number,
+  radiusKm = 20,
+): Promise<PlaceResult[]> {
   if (!GOOGLE_API_KEY) return [];
+
+  // Géocode la requête (ville tapée par l'utilisateur, ex: "salon de coiffure Penthalaz") pour
+  // borner la recherche à un rayon raisonnable autour d'elle — sans ça, Text Search peut
+  // remonter des résultats n'importe où en Suisse (voire hors Suisse) sur un simple match texte.
+  const center = await geocode(query);
 
   const places: PlaceResult[] = [];
   let pageToken: string | undefined;
 
   while (places.length < maxResults) {
     const params = new URLSearchParams({ query, key: GOOGLE_API_KEY });
+    if (center) {
+      params.set("location", `${center.lat},${center.lng}`);
+      params.set("radius", String(Math.round(radiusKm * 1000)));
+    }
     if (pageToken) {
       params.set("pagetoken", pageToken);
       await new Promise((r) => setTimeout(r, 2000)); // Google exige un court délai avant d'utiliser un page token

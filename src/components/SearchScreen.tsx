@@ -11,6 +11,7 @@ export default function SearchScreen({ onDone }: { onDone: () => void }) {
   const [query, setQuery] = useState("");
   const [service, setService] = useState<ServiceFilter>("auto");
   const [maxResults, setMaxResults] = useState(20);
+  const [radiusKm, setRadiusKm] = useState(20);
   const [icp, setIcp] = useState(DEFAULT_ICP);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ total_trouves: number; inserted: number; skipped: number } | null>(null);
@@ -28,7 +29,7 @@ export default function SearchScreen({ onDone }: { onDone: () => void }) {
         : `${icp}. Priorise le service "${service}" si le lead s'y prête.`;
 
     const { data, error } = await supabase.functions.invoke("search-leads", {
-      body: { query, maxResults, icp: effectiveIcp },
+      body: { query, maxResults, radiusKm, icp: effectiveIcp },
     });
 
     setLoading(false);
@@ -63,7 +64,7 @@ export default function SearchScreen({ onDone }: { onDone: () => void }) {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div>
             <label className="block text-sm font-medium text-neutral-700">Service à cibler</label>
             <select
@@ -85,6 +86,17 @@ export default function SearchScreen({ onDone }: { onDone: () => void }) {
               max={100}
               value={maxResults}
               onChange={(e) => setMaxResults(Number(e.target.value))}
+              className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-neutral-700">Rayon (km)</label>
+            <input
+              type="number"
+              min={1}
+              max={200}
+              value={radiusKm}
+              onChange={(e) => setRadiusKm(Number(e.target.value))}
               className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-500"
             />
           </div>

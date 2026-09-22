@@ -112,7 +112,7 @@ export default function SendScreen({ selected, onClearSelected }: { selected: Se
         </p>
       ) : (
         <>
-          <div className="mt-4 grid grid-cols-3 gap-4 text-sm">
+          <div className="mt-4 grid grid-cols-1 gap-4 text-sm sm:grid-cols-3">
             <label>
               Limite quotidienne
               <input
@@ -148,7 +148,7 @@ export default function SendScreen({ selected, onClearSelected }: { selected: Se
             </label>
           </div>
 
-          <div className="mt-5 flex items-center gap-3">
+          <div className="mt-5 flex flex-wrap items-center gap-3">
             {!running ? (
               <button
                 onClick={handleStart}

@@ -16,8 +16,12 @@ export interface Lead {
   source_requete: string;
   statut_envoi: "en_attente" | "envoyé" | "répondu" | "ignoré";
   date_envoi: string | null;
+  email_override_subject: string;
+  email_override_body: string;
   created_at: string;
 }
+
+export const DEFAULT_EMAIL_SUBJECT = "Une présentation rapide de FynUp Consulting";
 
 export const SERVICE_LABELS: Record<string, string> = {
   dashboard: "Dashboard",

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { SECTEUR_LABELS, STATUT_LABELS, type Lead } from "../lib/types";
 
-const SECTEUR_ORDER = ["batiment", "alimentaire", "personne", "generique", "exclu"];
+const SECTEUR_ORDER = ["batiment", "alimentaire", "personne", "restauration", "generique"];
 const STATUT_ORDER: Array<Lead["statut_envoi"]> = ["en_attente", "envoyé", "répondu", "ignoré"];
 
 export default function RecapScreen() {

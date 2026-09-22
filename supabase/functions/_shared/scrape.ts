@@ -6,7 +6,9 @@ const EMAIL_RE = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
 const BOOKING_KEYWORDS = [
   "réserv", "reserv", "booking", "rendez-vous", "rdv", "prendre rendez", "book now", "calendly",
 ];
-const CONTACT_PATHS = ["/contact", "/contact-us", "/mentions-legales", "/impressum", "/kontakt"];
+const CONTACT_PATHS = [
+  "/contact", "/contact-us", "/nous-contacter", "/contactez-nous", "/mentions-legales", "/impressum", "/kontakt",
+];
 
 export interface ScrapeResult {
   email: string;
@@ -70,7 +72,7 @@ export async function scrapeWebsite(url: string): Promise<ScrapeResult> {
     try {
       const base = new URL(url);
       for (const path of CONTACT_PATHS) {
-        const sub = await fetchPage(new URL(path, base).toString(), 6000);
+        const sub = await fetchPage(new URL(path, base).toString(), 5000);
         if (sub) {
           email = extractEmail(sub.html, sub.text);
           if (email) break;

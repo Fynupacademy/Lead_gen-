@@ -23,6 +23,7 @@ Deno.serve(async (req) => {
     const icp: string = body.icp || DEFAULT_ICP;
     const useMaps: boolean = body.useMaps ?? true;
     const useSearch: boolean = body.useSearch ?? true;
+    const radiusKm: number = body.radiusKm ?? 20;
 
     if (!query) {
       return new Response(JSON.stringify({ error: "query requis" }), {
@@ -39,7 +40,7 @@ Deno.serve(async (req) => {
     const leads: LeadRow[] = [];
 
     if (useMaps) {
-      for (const place of await googlePlacesSearch(query, maxResults)) {
+      for (const place of await googlePlacesSearch(query, maxResults, radiusKm)) {
         leads.push({
           nom: place.nom,
           email: "",

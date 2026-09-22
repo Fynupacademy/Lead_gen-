@@ -55,14 +55,18 @@ Deno.serve(async (req) => {
       });
     }
 
-    const generated = await generateEmail(lead.nom, lead.secteur, lead.source_requete, lead.service_cible);
+    // Un texte édité manuellement (Écran 2) prime sur la génération automatique — pas besoin de
+    // rappeler Claude dans ce cas.
+    let body = lead.email_override_body;
+    const subject = lead.email_override_subject || EMAIL_SUBJECT;
 
-    if (!lead.secteur) {
-      await supabase.from("leads").update({ secteur: generated.secteur }).eq("id", lead.id);
+    if (!body) {
+      const generated = await generateEmail(lead.nom, lead.secteur, lead.source_requete, lead.service_cible);
+      if (!lead.secteur) {
+        await supabase.from("leads").update({ secteur: generated.secteur }).eq("id", lead.id);
+      }
+      body = generated.body;
     }
-
-    const body = generated.body;
-    const subject = EMAIL_SUBJECT;
 
     const result = await sendEmail(lead.email, subject, body);
 
