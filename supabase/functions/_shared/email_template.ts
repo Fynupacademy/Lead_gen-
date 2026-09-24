@@ -12,7 +12,7 @@ const VIDEO_URL = Deno.env.get("VIDEO_URL") ?? "";
 
 export const EMAIL_SUBJECT = "Une présentation rapide de FynUp Consulting";
 
-const SIGNATURE = "Pierre-Olivier\nFynUp Consulting";
+const SIGNATURE = "Pierre-Olivier D'Oria\nConsultant\n+41 76 506 28 71";
 
 export type Secteur = "batiment" | "alimentaire" | "personne" | "generique" | "restauration";
 const KNOWN_SECTEURS: Secteur[] = ["batiment", "alimentaire", "personne", "generique", "restauration"];
