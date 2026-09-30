@@ -22,7 +22,7 @@ const TEMPLATES: Record<Secteur, string> = {
 
 Je suis Pierre-Olivier, fondateur de FynUp. 20 ans dans l'opérationnel et la gestion d'entreprise, j'accompagne les indépendants et les PME dans leurs projets de gestion et de digitalisation, avec des outils simples que j'utilise moi-même au quotidien.
 
-Entre les chantiers, le temps manque pour les devis et les factures. J'ai développé une application de devis vocal, utilisable sur natel ou PC. Vous dictez, ça génère le document, intégré avec la facturation au code QR aux normes suisses et la relance automatique.
+Entre les chantiers, le temps manque pour les devis et les factures. J'ai développé une application de devis vocal, utilisable sur natel ou PC. Vous dictez, ça génère le document, que le client peut valider et signer en ligne, intégré avec la facturation au code QR aux normes suisses et la relance automatique.
 
 D'autres solutions sont possibles pour vous. Tout est sur presentation.fynup-consulting.ch, avec un calculateur pour voir votre impact concret, et une courte vidéo pour quelques exemples.
 
@@ -70,7 +70,7 @@ ${SIGNATURE}`,
 
 Je suis Pierre-Olivier, fondateur de FynUp. 20 ans dans l'opérationnel et la gestion d'entreprise, j'accompagne les indépendants et les PME dans leurs projets de gestion et de digitalisation, avec des outils simples que j'utilise moi-même au quotidien.
 
-Entre les achats, le personnel et le service, difficile de garder un œil sur la rentabilité au jour le jour. J'ai développé une application dashboard sur mesure, qui centralise coûts, marges et chiffre d'affaires en un coup d'œil, avec un volet marketing digital pour remplir la salle les soirs creux.
+Entre les achats, le personnel et le service, difficile de garder un œil sur la rentabilité au jour le jour. J'ai développé une application dashboard sur mesure, qui centralise coûts, marges et chiffre d'affaires en un coup d'œil, avec un volet marketing digital pour dynamiser les ventes.
 
 D'autres solutions sont possibles pour vous. Tout est sur presentation.fynup-consulting.ch, avec un calculateur pour voir votre impact concret, et une courte vidéo pour quelques exemples.
 
