@@ -24,7 +24,7 @@ Je suis Pierre-Olivier, fondateur de FynUp. 20 ans dans l'opérationnel et la ge
 
 Entre les chantiers, le temps manque pour les devis et les factures. J'ai développé une application de devis vocal, utilisable sur natel ou PC. Vous dictez, ça génère le document, intégré avec la facturation au code QR aux normes suisses et la relance automatique.
 
-J'ai d'autres solutions aussi, selon vos besoins. Une courte vidéo vous montre quelques exemples, le reste des informations est sur fynup-consulting.ch.
+D'autres solutions sont possibles pour vous. Tout est sur presentation.fynup-consulting.ch, avec un calculateur pour voir votre impact concret, et une courte vidéo pour quelques exemples.
 
 Si ça vous intéresse, j'en discute avec plaisir, sans engagement.
 
@@ -36,7 +36,7 @@ Je suis Pierre-Olivier, fondateur de FynUp. 20 ans dans l'opérationnel et la ge
 
 Entre la production et les ventes, difficile de voir en temps réel où va le chiffre d'affaires. J'ai développé une application dashboard, utilisable sur natel ou PC, qui centralise ventes, stock et marges en un coup d'œil, bien plus simple qu'un tableur à construire soi-même.
 
-J'ai d'autres solutions aussi, selon vos besoins. Une courte vidéo vous montre quelques exemples, le reste des informations est sur fynup-consulting.ch.
+D'autres solutions sont possibles pour vous. Tout est sur presentation.fynup-consulting.ch, avec un calculateur pour voir votre impact concret, et une courte vidéo pour quelques exemples.
 
 Si ça vous intéresse, j'en discute avec plaisir, sans engagement.
 
@@ -48,7 +48,7 @@ Je suis Pierre-Olivier, fondateur de FynUp. J'accompagne les indépendants et le
 
 Entre les rendez-vous clients et la caisse, le suivi du chiffre d'affaires passe souvent après coup. J'ai développé une application dashboard, spécialement pensée pour la gestion de salon, utilisable sur natel ou PC. Elle suit les prestations, le chiffre d'affaires, les encaissements, et peut inclure le stock.
 
-J'ai d'autres solutions aussi, vraiment sympas, selon vos besoins. Une courte vidéo vous montre quelques exemples, le reste des informations est sur fynup-consulting.ch.
+D'autres solutions sont possibles pour vous. Tout est sur presentation.fynup-consulting.ch, avec un calculateur pour voir votre impact concret, et une courte vidéo pour quelques exemples.
 
 Si ça vous intéresse, j'en discute avec plaisir, sans engagement.
 
@@ -60,7 +60,7 @@ Je suis Pierre-Olivier, fondateur de FynUp. J'accompagne les indépendants et le
 
 Ma conviction est simple : chaque entreprise est différente, ses outils devraient l'être aussi. Plutôt qu'un logiciel standard, des outils adaptés à votre façon de travailler.
 
-J'ai d'autres solutions aussi, vraiment sympas, selon vos besoins. Une courte vidéo vous montre quelques exemples, le reste des informations est sur fynup-consulting.ch.
+D'autres solutions sont possibles pour vous. Tout est sur presentation.fynup-consulting.ch, avec un calculateur pour voir votre impact concret, et une courte vidéo pour quelques exemples.
 
 Si ça vous intéresse, j'en discute avec plaisir, sans engagement.
 
@@ -72,7 +72,7 @@ Je suis Pierre-Olivier, fondateur de FynUp. 20 ans dans l'opérationnel et la ge
 
 Entre les achats, le personnel et le service, difficile de garder un œil sur la rentabilité au jour le jour. J'ai développé une application dashboard sur mesure, qui centralise coûts, marges et chiffre d'affaires en un coup d'œil, avec un volet marketing digital pour remplir la salle les soirs creux.
 
-J'ai d'autres solutions aussi, selon vos besoins. Une courte vidéo vous montre quelques exemples, le reste des informations est sur fynup-consulting.ch.
+D'autres solutions sont possibles pour vous. Tout est sur presentation.fynup-consulting.ch, avec un calculateur pour voir votre impact concret, et une courte vidéo pour quelques exemples.
 
 Si ça vous intéresse, j'en discute avec plaisir, sans engagement.
 
@@ -115,10 +115,10 @@ async function classifySecteur(nom: string, secteurHint: string, serviceCible: s
 
 function fillTemplate(secteur: Secteur, nom: string): string {
   let text = TEMPLATES[secteur].replace(/\{\{NomEntreprise\}\}/g, nom);
-  // Lien vidéo ajouté en plus de la mention "fynup-consulting.ch" (deux liens distincts), pas
-  // codé en dur dans le template — vide si VIDEO_URL n'est pas configuré.
+  // Deux liens distincts, jamais fusionnés : d'abord presentation.fynup-consulting.ch (fixe,
+  // dans le template), puis le lien vidéo (VIDEO_URL, secret) juste après — vide si non configuré.
   if (VIDEO_URL) {
-    text = text.replace("quelques exemples,", `quelques exemples (${VIDEO_URL}),`);
+    text = text.replace("une courte vidéo pour", `une courte vidéo (${VIDEO_URL}) pour`);
   }
   // Filet de sécurité : zéro tiret cadratin toléré (règle absolue), même en cas d'aléa du modèle.
   text = text.replace(/—/g, ",");
