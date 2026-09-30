@@ -20,7 +20,8 @@ const KNOWN_SECTEURS: Secteur[] = ["batiment", "alimentaire", "personne", "gener
 const TEMPLATES: Record<Secteur, string> = {
   batiment: `Bonjour à toute l'équipe de {{NomEntreprise}},
 
-Je suis Pierre-Olivier, fondateur de FynUp. 20 ans dans l'opérationnel et la gestion d'entreprise, j'accompagne les indépendants et les PME dans leurs projets de gestion et de digitalisation, avec des outils simples que j'utilise moi-même au quotidien.
+Je suis Pierre-Olivier, fondateur de FynUp.
+20 ans dans l'opérationnel et la gestion d'entreprise, j'accompagne les indépendants et les PME dans leurs projets de gestion et de digitalisation, avec des outils simples que j'utilise moi-même au quotidien.
 
 Entre les chantiers, le temps manque pour les devis et les factures. J'ai développé une application de devis vocal, utilisable sur natel ou PC. Vous dictez, ça génère le document, que le client peut valider et signer en ligne, intégré avec la facturation au code QR aux normes suisses et la relance automatique.
 
@@ -32,7 +33,8 @@ ${SIGNATURE}`,
 
   alimentaire: `Bonjour à toute l'équipe de {{NomEntreprise}},
 
-Je suis Pierre-Olivier, fondateur de FynUp. 20 ans dans l'opérationnel et la gestion d'entreprise, j'accompagne les indépendants et les PME dans leurs projets de gestion et de digitalisation, avec des outils simples que j'utilise moi-même au quotidien.
+Je suis Pierre-Olivier, fondateur de FynUp.
+20 ans dans l'opérationnel et la gestion d'entreprise, j'accompagne les indépendants et les PME dans leurs projets de gestion et de digitalisation, avec des outils simples que j'utilise moi-même au quotidien.
 
 Entre la production et les ventes, difficile de voir en temps réel où va le chiffre d'affaires. J'ai développé une application dashboard, utilisable sur natel ou PC, qui centralise ventes, stock et marges en un coup d'œil, bien plus simple qu'un tableur à construire soi-même.
 
@@ -68,7 +70,8 @@ ${SIGNATURE}`,
 
   restauration: `Bonjour à toute l'équipe de {{NomEntreprise}},
 
-Je suis Pierre-Olivier, fondateur de FynUp. 20 ans dans l'opérationnel et la gestion d'entreprise, j'accompagne les indépendants et les PME dans leurs projets de gestion et de digitalisation, avec des outils simples que j'utilise moi-même au quotidien.
+Je suis Pierre-Olivier, fondateur de FynUp.
+20 ans dans l'opérationnel et la gestion d'entreprise, j'accompagne les indépendants et les PME dans leurs projets de gestion et de digitalisation, avec des outils simples que j'utilise moi-même au quotidien.
 
 Entre les achats, le personnel et le service, difficile de garder un œil sur la rentabilité au jour le jour. J'ai développé une application dashboard sur mesure, qui centralise coûts, marges et chiffre d'affaires en un coup d'œil, avec un volet marketing digital pour dynamiser les ventes.
 
