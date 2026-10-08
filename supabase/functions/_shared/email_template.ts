@@ -141,7 +141,7 @@ export interface GeneratedEmail {
   secteur: Secteur;
 }
 
-export const RELANCE_SUBJECT = "Petite relance - FynUp Consulting";
+export const RELANCE_SUBJECT = "Quelques minutes pour en parler ?";
 
 const RELANCE_TEMPLATE = `Bonjour à toute l'équipe de {{NomEntreprise}},
 
