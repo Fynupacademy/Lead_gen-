@@ -3,7 +3,7 @@
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { corsHeaders, handleOptions } from "../_shared/cors.ts";
-import { EMAIL_SUBJECT, generateEmail } from "../_shared/email_template.ts";
+import { generateEmail } from "../_shared/email_template.ts";
 
 Deno.serve(async (req) => {
   const preflight = handleOptions(req);
@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ subject: EMAIL_SUBJECT, body: generated.body, secteur: generated.secteur }),
+      JSON.stringify({ subject: generated.subject, body: generated.body, secteur: generated.secteur }),
       { headers: { ...corsHeaders, "content-type": "application/json" } },
     );
   } catch (e) {

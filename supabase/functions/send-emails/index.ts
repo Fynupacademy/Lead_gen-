@@ -8,7 +8,7 @@
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { corsHeaders, handleOptions } from "../_shared/cors.ts";
-import { EMAIL_SUBJECT, generateEmail } from "../_shared/email_template.ts";
+import { generateEmail, subjectFor } from "../_shared/email_template.ts";
 import { sendEmail } from "../_shared/smtp.ts";
 
 Deno.serve(async (req) => {
@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
     // Un texte édité manuellement (Écran 2) prime sur la génération automatique — pas besoin de
     // rappeler Claude dans ce cas.
     let body = lead.email_override_body;
-    const subject = lead.email_override_subject || EMAIL_SUBJECT;
+    let subject = lead.email_override_subject;
 
     if (!body) {
       const generated = await generateEmail(lead.nom, lead.secteur, lead.source_requete, lead.service_cible);
@@ -66,7 +66,9 @@ Deno.serve(async (req) => {
         await supabase.from("leads").update({ secteur: generated.secteur }).eq("id", lead.id);
       }
       body = generated.body;
+      subject = subject || generated.subject;
     }
+    subject = subject || subjectFor(lead.secteur);
 
     const result = await sendEmail(lead.email, subject, body);
 

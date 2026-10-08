@@ -22,7 +22,7 @@ export interface Lead {
   created_at: string;
 }
 
-export const DEFAULT_EMAIL_SUBJECT = "Une présentation rapide de FynUp Consulting";
+export const DEFAULT_EMAIL_SUBJECT = "Des outils faits pour votre façon de travailler";
 
 export const SERVICE_LABELS: Record<string, string> = {
   dashboard: "Dashboard",

@@ -1,85 +1,93 @@
-// Génération de l'email de prospection — templates validés par secteur (voir
-// templates-email-par-secteur.md). Le secteur est déterminé une fois à la qualification
-// (Module 1, voir qualify.ts) et stocké sur le lead ; ce module se contente de remplir le
-// template correspondant — remplissage 100% déterministe, donc le texte envoyé est mot pour
-// mot celui validé par Pierre-Olivier (pas de paraphrase, pas de tiret cadratin, pas de lien
-// vidéo halluciné). Un lead sans secteur enregistré (créé avant cette fonctionnalité) est
-// classifié à la volée via Claude, en secours.
+// Génération de l'email de prospection : un template court par secteur (texte validé par
+// Pierre-Olivier). Le secteur est déterminé une fois à la qualification (Module 1, voir
+// qualify.ts) et stocké sur le lead ; ce module se contente de remplir le template
+// correspondant, remplissage 100% déterministe (pas de paraphrase, pas de tiret cadratin).
+// Un lead sans secteur enregistré est classifié à la volée via Claude, en secours.
 
 import { callClaude } from "./anthropic.ts";
 
+// Lien vidéo (secret Supabase), jamais codé en dur dans les templates.
 const VIDEO_URL = Deno.env.get("VIDEO_URL") ?? "";
+const CALCULATEUR_URL = "https://presentation.fynup-consulting.ch";
 
-export const EMAIL_SUBJECT = "Une présentation rapide de FynUp Consulting";
-
-const SIGNATURE = "Pierre-Olivier D'Oria\nConsultant\n+41 76 506 28 71";
+const SIGNATURE = "Excellente journée,\n\nPierre-Olivier D'Oria\nFynUp Consulting\n+41 76 506 28 71";
 
 export type Secteur = "batiment" | "alimentaire" | "personne" | "generique" | "restauration";
 const KNOWN_SECTEURS: Secteur[] = ["batiment", "alimentaire", "personne", "generique", "restauration"];
 
+const SUBJECTS: Record<Secteur, string> = {
+  batiment: "Vos devis, le soir après le chantier ?",
+  alimentaire: "Votre stock et vos marges, vous les voyez quand ?",
+  personne: "Votre chiffre d'affaires, vous le suivez quand ?",
+  generique: "Des outils faits pour votre façon de travailler",
+  restauration: "Votre marge, vous la voyez quand ?",
+};
+
+export function subjectFor(secteur: string): string {
+  return SUBJECTS[(secteur || "").toLowerCase() as Secteur] ?? SUBJECTS.generique;
+}
+
+const OUTRO = `Si un point vous parle, répondez simplement « oui » et je vous rappelle.
+
+{{signature}}`;
+
+//   (espace insécable) avant les deux-points : évite que le « : » passe seul à la ligne.
+const LIENS = `En 1 minute, ce que je peux vous mettre en place :
+{{lien_video}}
+
+Et pour chiffrer les gains potentiels pour votre activité :
+{{lien_calculateur}}`;
+
 const TEMPLATES: Record<Secteur, string> = {
-  batiment: `Bonjour à toute l'équipe de {{NomEntreprise}},
+  batiment: `{{salutation}}
 
-Je suis Pierre-Olivier, fondateur de FynUp.
-20 ans dans l'opérationnel et la gestion d'entreprise, j'accompagne les indépendants et les PME dans leurs projets de gestion et de digitalisation, avec des outils simples que j'utilise moi-même au quotidien.
+Dans le bâtiment, les devis et les factures se font souvent le soir, après la journée.
 
-Entre les chantiers, le temps manque pour les devis et les factures. J'ai développé une application de devis vocal, utilisable sur natel ou PC. Vous dictez, ça génère le document, que le client peut valider et signer en ligne, intégré avec la facturation au code QR aux normes suisses et la relance automatique.
+J'ai développé un devis vocal pour ça. Vous dictez sur natel, le client signe en ligne, la facture QR suit.
 
-D'autres solutions sont possibles pour vous. Tout est sur presentation.fynup-consulting.ch, avec un calculateur pour voir votre impact concret, et une courte vidéo pour quelques exemples.
+${LIENS}
 
-Si ça vous intéresse, j'en discute avec plaisir, sans engagement.
+${OUTRO}`,
 
-${SIGNATURE}`,
+  restauration: `{{salutation}}
 
-  alimentaire: `Bonjour à toute l'équipe de {{NomEntreprise}},
+Entre les achats, le personnel et le service, la rentabilité se regarde souvent en fin de mois. Quand il est trop tard pour corriger.
 
-Je suis Pierre-Olivier, fondateur de FynUp.
-20 ans dans l'opérationnel et la gestion d'entreprise, j'accompagne les indépendants et les PME dans leurs projets de gestion et de digitalisation, avec des outils simples que j'utilise moi-même au quotidien.
+J'ai développé un dashboard sur mesure. Coûts, marges et chiffre d'affaires en un coup d'œil, jour après jour.
 
-Entre la production et les ventes, difficile de voir en temps réel où va le chiffre d'affaires. J'ai développé une application dashboard, utilisable sur natel ou PC, qui centralise ventes, stock et marges en un coup d'œil, bien plus simple qu'un tableur à construire soi-même.
+${LIENS}
 
-D'autres solutions sont possibles pour vous. Tout est sur presentation.fynup-consulting.ch, avec un calculateur pour voir votre impact concret, et une courte vidéo pour quelques exemples.
+${OUTRO}`,
 
-Si ça vous intéresse, j'en discute avec plaisir, sans engagement.
+  personne: `{{salutation}}
 
-${SIGNATURE}`,
+Entre les rendez-vous et la caisse, le suivi du chiffre d'affaires passe souvent après coup.
 
-  personne: `Bonjour à toute l'équipe de {{NomEntreprise}},
+J'ai développé un dashboard pensé pour la gestion de salon, sur natel ou PC. Prestations, chiffre d'affaires et encaissements au même endroit.
 
-Je suis Pierre-Olivier, fondateur de FynUp. J'accompagne les indépendants et les PME dans leurs projets de gestion et de digitalisation, fort de 20 ans dans l'opérationnel, avec des outils simples que j'utilise moi-même au quotidien.
+${LIENS}
 
-Entre les rendez-vous clients et la caisse, le suivi du chiffre d'affaires passe souvent après coup. J'ai développé une application dashboard, spécialement pensée pour la gestion de salon, utilisable sur natel ou PC. Elle suit les prestations, le chiffre d'affaires, les encaissements, et peut inclure le stock.
+${OUTRO}`,
 
-D'autres solutions sont possibles pour vous. Tout est sur presentation.fynup-consulting.ch, avec un calculateur pour voir votre impact concret, et une courte vidéo pour quelques exemples.
+  alimentaire: `{{salutation}}
 
-Si ça vous intéresse, j'en discute avec plaisir, sans engagement.
+Entre la production et les ventes, difficile de voir en temps réel où va le chiffre d'affaires.
 
-${SIGNATURE}`,
+J'ai développé un dashboard sur natel ou PC. Ventes, stock et marges en un coup d'œil, bien plus simple qu'un tableur.
 
-  generique: `Bonjour à toute l'équipe de {{NomEntreprise}},
+${LIENS}
 
-Je suis Pierre-Olivier, fondateur de FynUp. J'accompagne les indépendants et les PME dans leurs projets de gestion et de digitalisation, fort de 20 ans dans l'opérationnel, avec des outils simples que j'utilise moi-même au quotidien.
+${OUTRO}`,
 
-Ma conviction est simple : chaque entreprise est différente, ses outils devraient l'être aussi. Plutôt qu'un logiciel standard, des outils adaptés à votre façon de travailler.
+  generique: `{{salutation}}
 
-D'autres solutions sont possibles pour vous. Tout est sur presentation.fynup-consulting.ch, avec un calculateur pour voir votre impact concret, et une courte vidéo pour quelques exemples.
+Chaque entreprise travaille à sa façon. Les logiciels standard obligent à s'adapter.
 
-Si ça vous intéresse, j'en discute avec plaisir, sans engagement.
+Je fais l'inverse. Je crée des outils sur mesure : devis, finances, suivi clients, automatisation.
 
-${SIGNATURE}`,
+${LIENS}
 
-  restauration: `Bonjour à toute l'équipe de {{NomEntreprise}},
-
-Je suis Pierre-Olivier, fondateur de FynUp.
-20 ans dans l'opérationnel et la gestion d'entreprise, j'accompagne les indépendants et les PME dans leurs projets de gestion et de digitalisation, avec des outils simples que j'utilise moi-même au quotidien.
-
-Entre les achats, le personnel et le service, difficile de garder un œil sur la rentabilité au jour le jour. J'ai développé une application dashboard sur mesure, qui centralise coûts, marges et chiffre d'affaires en un coup d'œil, avec un volet marketing digital pour dynamiser les ventes.
-
-D'autres solutions sont possibles pour vous. Tout est sur presentation.fynup-consulting.ch, avec un calculateur pour voir votre impact concret, et une courte vidéo pour quelques exemples.
-
-Si ça vous intéresse, j'en discute avec plaisir, sans engagement.
-
-${SIGNATURE}`,
+${OUTRO}`,
 };
 
 function classifyPrompt(nom: string, secteurHint: string, serviceCible: string): string {
@@ -117,18 +125,18 @@ async function classifySecteur(nom: string, secteurHint: string, serviceCible: s
 }
 
 function fillTemplate(secteur: Secteur, nom: string): string {
-  let text = TEMPLATES[secteur].replace(/\{\{NomEntreprise\}\}/g, nom);
-  // Deux liens distincts, jamais fusionnés : d'abord presentation.fynup-consulting.ch (fixe,
-  // dans le template), puis le lien vidéo (VIDEO_URL, secret) juste après — vide si non configuré.
-  if (VIDEO_URL) {
-    text = text.replace("une courte vidéo pour", `une courte vidéo (${VIDEO_URL}) pour`);
-  }
-  // Filet de sécurité : zéro tiret cadratin toléré (règle absolue), même en cas d'aléa du modèle.
+  let text = TEMPLATES[secteur]
+    .replace(/\{\{salutation\}\}/g, `Bonjour à toute l'équipe de ${nom},\n\nJe me présente, Pierre-Olivier, consultant chez FynUp.`)
+    .replace(/\{\{lien_video\}\}/g, VIDEO_URL)
+    .replace(/\{\{lien_calculateur\}\}/g, CALCULATEUR_URL)
+    .replace(/\{\{signature\}\}/g, SIGNATURE);
+  // Filet de sécurité : zéro tiret cadratin toléré (règle absolue).
   text = text.replace(/—/g, ",");
   return text;
 }
 
 export interface GeneratedEmail {
+  subject: string;
   body: string;
   secteur: Secteur;
 }
@@ -144,8 +152,7 @@ Je me permets de revenir vers vous, au sujet des outils de gestion dont je vous 
 ${SIGNATURE}`;
 
 // Relance courte, un seul template déterministe (pas de variation par secteur, pas d'appel à
-// Claude) — même logique que les templates initiaux : texte validé mot pour mot par
-// Pierre-Olivier, pas de paraphrase possible.
+// Claude).
 export function generateRelance(nom: string): string {
   let text = RELANCE_TEMPLATE.replace(/\{\{NomEntreprise\}\}/g, nom);
   text = text.replace(/—/g, ",");
@@ -161,5 +168,5 @@ export async function generateEmail(
   const known = (leadSecteur || "").toLowerCase() as Secteur;
   const secteur = KNOWN_SECTEURS.includes(known) ? known : await classifySecteur(nom, secteurHint, serviceCible);
 
-  return { body: fillTemplate(secteur, nom), secteur };
+  return { subject: SUBJECTS[secteur], body: fillTemplate(secteur, nom), secteur };
 }

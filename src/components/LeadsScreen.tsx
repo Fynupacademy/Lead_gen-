@@ -145,15 +145,14 @@ export default function LeadsScreen({
   async function savePreview() {
     if (!previewLead) return;
     setPreviewSaving(true);
-    const subjectOverride = previewSubject === DEFAULT_EMAIL_SUBJECT ? "" : previewSubject;
     await supabase
       .from("leads")
-      .update({ email_override_subject: subjectOverride, email_override_body: previewBody })
+      .update({ email_override_subject: previewSubject, email_override_body: previewBody })
       .eq("id", previewLead.id);
     setLeads((prev) =>
       prev.map((l) =>
         l.id === previewLead.id
-          ? { ...l, email_override_subject: subjectOverride, email_override_body: previewBody }
+          ? { ...l, email_override_subject: previewSubject, email_override_body: previewBody }
           : l,
       ),
     );
