@@ -1,4 +1,4 @@
-// Génération de l'email de prospection : un template court par secteur (texte validé par
+// Génération de l'email de prospection : un template par secteur (texte validé par
 // Pierre-Olivier). Le secteur est déterminé une fois à la qualification (Module 1, voir
 // qualify.ts) et stocké sur le lead ; ce module se contente de remplir le template
 // correspondant, remplissage 100% déterministe (pas de paraphrase, pas de tiret cadratin).
@@ -6,88 +6,104 @@
 
 import { callClaude } from "./anthropic.ts";
 
-// Lien vidéo (secret Supabase), jamais codé en dur dans les templates.
-const VIDEO_URL = Deno.env.get("VIDEO_URL") ?? "";
-const CALCULATEUR_URL = "https://presentation.fynup-consulting.ch";
+// Page de prospection (vidéo + plaquette-calculateur), indépendante du site FynUp.
+const LIEN_URL = "https://video.fynup-consulting.ch";
 
-const SIGNATURE = "Excellente journée,\n\nPierre-Olivier D'Oria\nFynUp Consulting\n+41 76 506 28 71";
+const SIGNATURE = "Excellente journée,\n\nPierre-Olivier D’Oria\nFynUp Consulting\n+41 76 506 28 71";
 
 export type Secteur = "batiment" | "alimentaire" | "personne" | "generique" | "restauration";
 const KNOWN_SECTEURS: Secteur[] = ["batiment", "alimentaire", "personne", "generique", "restauration"];
 
 const SUBJECTS: Record<Secteur, string> = {
   batiment: "Vos devis, le soir après le chantier ?",
-  alimentaire: "Votre stock et vos marges, vous les voyez quand ?",
-  personne: "Votre chiffre d'affaires, vous le suivez quand ?",
-  generique: "Des outils faits pour votre façon de travailler",
   restauration: "Votre marge, vous la voyez quand ?",
+  personne: "Votre chiffre d’affaires, vous le suivez quand ?",
+  alimentaire: "Vos stocks et vos marges, vous les voyez quand ?",
+  generique: "Des outils faits pour votre façon de travailler",
 };
 
 export function subjectFor(secteur: string): string {
   return SUBJECTS[(secteur || "").toLowerCase() as Secteur] ?? SUBJECTS.generique;
 }
 
-const OUTRO = `Si un point vous parle, répondez simplement « oui » et je vous rappelle.
-
-{{signature}}`;
-
 //   (espace insécable) avant les deux-points : évite que le « : » passe seul à la ligne.
-const LIENS = `En 1 minute, ce que je peux vous mettre en place :
-{{lien_video}}
-
-Et pour chiffrer les gains potentiels pour votre activité :
-{{lien_calculateur}}`;
-
 const TEMPLATES: Record<Secteur, string> = {
-  batiment: `{{salutation}}
+  batiment: `Bonjour à toute l’équipe de {{NomEntreprise}},
 
-Dans le bâtiment, les devis et les factures se font souvent le soir, après la journée.
+Je suis Pierre-Olivier, fondateur de FynUp. J’accompagne les entreprises dans leurs projets de gestion et de digitalisation, avec des outils pratiques qui simplifient le suivi de leur activité.
 
-J'ai développé un devis vocal pour ça. Vous dictez sur natel, le client signe en ligne, la facture QR suit.
+Dans le bâtiment, une fois la journée terminée, il reste souvent les devis à préparer, les factures à envoyer et les clients à relancer. Du temps passé derrière un écran alors qu’on a déjà passé la journée sur le terrain.
 
-${LIENS}
+J’ai développé une solution qui permet de dicter un devis depuis son natel, de le faire signer en ligne et d’enchaîner avec la facturation QR et les relances automatiques.
 
-${OUTRO}`,
+En 1 minute, quelques exemples de ce que je peux mettre en place, et de quoi estimer vos gains :
+{{lien}}
 
-  restauration: `{{salutation}}
+Si cela vous parle, répondez simplement « oui » et je vous rappelle. Nous pourrons en discuter sans engagement.
 
-Entre les achats, le personnel et le service, la rentabilité se regarde souvent en fin de mois. Quand il est trop tard pour corriger.
+{{signature}}`,
 
-J'ai développé un dashboard sur mesure. Coûts, marges et chiffre d'affaires en un coup d'œil, jour après jour.
+  restauration: `Bonjour à toute l’équipe de {{NomEntreprise}},
 
-${LIENS}
+Je suis Pierre-Olivier, fondateur de FynUp. J’accompagne les entreprises dans leurs projets de gestion et de digitalisation, avec des outils pratiques qui simplifient le suivi de leur activité.
 
-${OUTRO}`,
+Entre les achats, le personnel et le rythme du service, il n’est pas toujours facile de savoir où en est réellement la rentabilité. Et quand les chiffres arrivent en fin de mois, il est parfois trop tard pour corriger le tir.
 
-  personne: `{{salutation}}
+J’ai développé un dashboard qui rassemble le chiffre d’affaires, les coûts et les marges dans une vue claire, pour mieux suivre l’activité et prendre les bonnes décisions au bon moment.
 
-Entre les rendez-vous et la caisse, le suivi du chiffre d'affaires passe souvent après coup.
+En 1 minute, quelques exemples de ce que je peux mettre en place, et de quoi estimer vos gains :
+{{lien}}
 
-J'ai développé un dashboard pensé pour la gestion de salon, sur natel ou PC. Prestations, chiffre d'affaires et encaissements au même endroit.
+Si vous souhaitez en savoir plus, répondez simplement « oui » et je vous rappelle. Nous pourrons en discuter sans engagement.
 
-${LIENS}
+{{signature}}`,
 
-${OUTRO}`,
+  personne: `Bonjour à toute l’équipe de {{NomEntreprise}},
 
-  alimentaire: `{{salutation}}
+Je suis Pierre-Olivier, fondateur de FynUp. J’accompagne les entreprises dans leurs projets de gestion et de digitalisation, avec des outils pratiques qui simplifient le suivi de leur activité.
 
-Entre la production et les ventes, difficile de voir en temps réel où va le chiffre d'affaires.
+Entre les rendez-vous, les prestations et la caisse, le suivi des chiffres passe facilement au second plan. On travaille toute la journée, mais on ne prend pas toujours le temps de voir clairement où en est l’activité.
 
-J'ai développé un dashboard sur natel ou PC. Ventes, stock et marges en un coup d'œil, bien plus simple qu'un tableur.
+J’ai développé un dashboard pensé pour les salons, accessible sur natel ou PC, qui centralise le chiffre d’affaires et les encaissements pour suivre l’activité plus simplement.
 
-${LIENS}
+En 1 minute, quelques exemples de ce que je peux mettre en place, et de quoi estimer vos gains :
+{{lien}}
 
-${OUTRO}`,
+Si vous êtes curieux, répondez simplement « oui » et je vous rappelle. Nous pourrons regarder ensemble ce qui pourrait être utile à votre salon, sans engagement.
 
-  generique: `{{salutation}}
+{{signature}}`,
 
-Chaque entreprise travaille à sa façon. Les logiciels standard obligent à s'adapter.
+  alimentaire: `Bonjour à toute l’équipe de {{NomEntreprise}},
 
-Je fais l'inverse. Je crée des outils sur mesure : devis, finances, suivi clients, automatisation.
+Je suis Pierre-Olivier, fondateur de FynUp. J’accompagne les entreprises dans leurs projets de gestion et de digitalisation, avec des outils pratiques qui simplifient le suivi de leur activité.
 
-${LIENS}
+Entre les achats, les stocks, la production et les ventes, il n’est pas toujours évident de savoir ce qui se vend le mieux, ce qui reste en stock et ce qui rapporte réellement.
 
-${OUTRO}`,
+J’ai développé un dashboard accessible sur natel ou PC, qui rassemble les ventes, les stocks et les marges en un coup d’œil. Une façon plus simple de garder une vue d’ensemble, sans devoir construire et maintenir un tableur complexe.
+
+En 1 minute, quelques exemples de ce que je peux mettre en place, et de quoi estimer vos gains :
+{{lien}}
+
+Si vous souhaitez en savoir plus, répondez simplement « oui » et je vous rappelle. Nous pourrons en discuter sans engagement.
+
+{{signature}}`,
+
+  generique: `Bonjour à toute l’équipe de {{NomEntreprise}},
+
+Je suis Pierre-Olivier, fondateur de FynUp. J’accompagne les entreprises dans leurs projets de gestion et de digitalisation, avec des outils pratiques qui simplifient le suivi de leur activité.
+
+Chaque entreprise a sa façon de travailler, ses habitudes et ses contraintes. Pourtant, les logiciels standards obligent souvent à s’adapter à l’outil, alors que l’inverse serait bien plus pratique.
+
+Chez FynUp, je développe des outils adaptés aux besoins concrets des entreprises : devis, suivi financier, gestion clients et automatisation des tâches répétitives.
+
+L’objectif est simple : gagner du temps, simplifier la gestion et pouvoir se concentrer davantage sur son activité.
+
+En 1 minute, quelques exemples de ce que je peux mettre en place, et de quoi estimer vos gains :
+{{lien}}
+
+Si une idée vous interpelle, répondez simplement « oui » et je vous rappelle. Nous pourrons en discuter sans engagement.
+
+{{signature}}`,
 };
 
 function classifyPrompt(nom: string, secteurHint: string, serviceCible: string): string {
@@ -126,9 +142,8 @@ async function classifySecteur(nom: string, secteurHint: string, serviceCible: s
 
 function fillTemplate(secteur: Secteur, nom: string): string {
   let text = TEMPLATES[secteur]
-    .replace(/\{\{salutation\}\}/g, `Bonjour à toute l'équipe de ${nom},\n\nJe me présente, Pierre-Olivier, consultant chez FynUp.`)
-    .replace(/\{\{lien_video\}\}/g, VIDEO_URL)
-    .replace(/\{\{lien_calculateur\}\}/g, CALCULATEUR_URL)
+    .replace(/\{\{NomEntreprise\}\}/g, nom)
+    .replace(/\{\{lien\}\}/g, LIEN_URL)
     .replace(/\{\{signature\}\}/g, SIGNATURE);
   // Filet de sécurité : zéro tiret cadratin toléré (règle absolue).
   text = text.replace(/—/g, ",");
