@@ -6,8 +6,9 @@
 
 import { callClaude } from "./anthropic.ts";
 
-// Page de prospection (vidéo + plaquette-calculateur), indépendante du site FynUp.
-const LIEN_URL = "https://video.fynup-consulting.ch";
+// Deux liens séparés : la vidéo (valeur de production actuelle) et le calculateur.
+const LIEN_VIDEO = "https://video.fynup-consulting.ch";
+const LIEN_CALCULATEUR = "https://presentation.fynup-consulting.ch";
 
 const SIGNATURE = "Excellente journée,\n\nPierre-Olivier D’Oria\nFynUp Consulting\n+41 76 506 28 71";
 
@@ -15,11 +16,11 @@ export type Secteur = "batiment" | "alimentaire" | "personne" | "generique" | "r
 const KNOWN_SECTEURS: Secteur[] = ["batiment", "alimentaire", "personne", "generique", "restauration"];
 
 const SUBJECTS: Record<Secteur, string> = {
-  batiment: "Vos devis, le soir après le chantier ?",
-  restauration: "Votre marge, vous la voyez quand ?",
-  personne: "Votre chiffre d’affaires, vous le suivez quand ?",
-  alimentaire: "Vos stocks et vos marges, vous les voyez quand ?",
-  generique: "Des outils faits pour votre façon de travailler",
+  batiment: "6 heures de devis par semaine ?",
+  restauration: "Un point de marge, 4 000 CHF par an ?",
+  personne: "30 minutes de saisie par jour ?",
+  alimentaire: "10 % d’invendus, 20 000 CHF par an ?",
+  generique: "Une tâche de 30 minutes par jour ?",
 };
 
 export function subjectFor(secteur: string): string {
@@ -30,78 +31,101 @@ export function subjectFor(secteur: string): string {
 const TEMPLATES: Record<Secteur, string> = {
   batiment: `Bonjour à toute l’équipe de {{NomEntreprise}},
 
-Je suis Pierre-Olivier, fondateur de FynUp. J’accompagne les entreprises dans leurs projets de gestion et de digitalisation, avec des outils pratiques qui simplifient le suivi de leur activité.
+Un devis fait à la main prend 45 minutes. Huit par semaine, c’est 6 heures. Souvent le soir, après le chantier.
 
-Dans le bâtiment, une fois la journée terminée, il reste souvent les devis à préparer, les factures à envoyer et les clients à relancer. Du temps passé derrière un écran alors qu’on a déjà passé la journée sur le terrain.
+Je suis Pierre-Olivier D’Oria, consultant FynUp. J’ai développé un devis vocal. Vous dictez sur natel, le devis est prêt, le client signe en ligne, la facture QR suit.
 
-J’ai développé une solution qui permet de dicter un devis depuis son natel, de le faire signer en ligne et d’enchaîner avec la facturation QR et les relances automatiques.
+Pas de discours. Je vous le montre en 15 minutes, avec un de vos vrais devis.
 
-En 1 minute, quelques exemples de ce que je peux mettre en place, et de quoi estimer vos gains :
-{{lien}}
+J’ai aussi d’autres solutions qui peuvent vous faire gagner du temps, de la productivité et de l’argent. Je les utilise moi-même au quotidien.
 
-Si cela vous parle, répondez simplement « oui » et je vous rappelle. Nous pourrons en discuter sans engagement.
+Une minute de vidéo :
+{{lien_video}}
+
+Pour chiffrer le gain sur votre activité :
+{{lien_calculateur}}
+
+Si cela vous intéresse, répondez « oui » et je vous recontacte.
 
 {{signature}}`,
 
   restauration: `Bonjour à toute l’équipe de {{NomEntreprise}},
 
-Je suis Pierre-Olivier, fondateur de FynUp. J’accompagne les entreprises dans leurs projets de gestion et de digitalisation, avec des outils pratiques qui simplifient le suivi de leur activité.
+Sur 400 000 CHF de chiffre d’affaires, un point de coût matières en trop coûte 4 000 CHF par an. Quand la marge se regarde en fin de mois, il est trop tard pour corriger.
 
-Entre les achats, le personnel et le rythme du service, il n’est pas toujours facile de savoir où en est réellement la rentabilité. Et quand les chiffres arrivent en fin de mois, il est parfois trop tard pour corriger le tir.
+Je suis Pierre-Olivier D’Oria, consultant FynUp. J’ai développé un dashboard sur mesure. Coûts, marges et chiffre d’affaires, jour après jour.
 
-J’ai développé un dashboard qui rassemble le chiffre d’affaires, les coûts et les marges dans une vue claire, pour mieux suivre l’activité et prendre les bonnes décisions au bon moment.
+Pas de discours. Je vous le montre en 15 minutes, avec vos chiffres.
 
-En 1 minute, quelques exemples de ce que je peux mettre en place, et de quoi estimer vos gains :
-{{lien}}
+J’ai aussi d’autres solutions qui peuvent vous faire gagner du temps, de la productivité et de l’argent. Je les utilise moi-même au quotidien.
 
-Si vous souhaitez en savoir plus, répondez simplement « oui » et je vous rappelle. Nous pourrons en discuter sans engagement.
+Une minute de vidéo :
+{{lien_video}}
+
+Pour chiffrer le gain sur votre activité :
+{{lien_calculateur}}
+
+Si cela vous intéresse, répondez « oui » et je vous recontacte.
 
 {{signature}}`,
 
   personne: `Bonjour à toute l’équipe de {{NomEntreprise}},
 
-Je suis Pierre-Olivier, fondateur de FynUp. J’accompagne les entreprises dans leurs projets de gestion et de digitalisation, avec des outils pratiques qui simplifient le suivi de leur activité.
+Reporter la caisse et les rendez-vous à la main, c’est 30 minutes par jour. À 35 CHF de l’heure, sur 220 jours, cela fait 3 850 CHF par an.
 
-Entre les rendez-vous, les prestations et la caisse, le suivi des chiffres passe facilement au second plan. On travaille toute la journée, mais on ne prend pas toujours le temps de voir clairement où en est l’activité.
+Je suis Pierre-Olivier D’Oria, consultant FynUp. J’ai développé un dashboard pour la gestion de salon, sur natel ou PC. Prestations, chiffre d’affaires et encaissements au même endroit.
 
-J’ai développé un dashboard pensé pour les salons, accessible sur natel ou PC, qui centralise le chiffre d’affaires et les encaissements pour suivre l’activité plus simplement.
+Pas de discours. Je vous le montre en 15 minutes.
 
-En 1 minute, quelques exemples de ce que je peux mettre en place, et de quoi estimer vos gains :
-{{lien}}
+J’ai aussi d’autres solutions qui peuvent vous faire gagner du temps, de la productivité et de l’argent. Je les utilise moi-même au quotidien.
 
-Si vous êtes curieux, répondez simplement « oui » et je vous rappelle. Nous pourrons regarder ensemble ce qui pourrait être utile à votre salon, sans engagement.
+Une minute de vidéo :
+{{lien_video}}
+
+Pour chiffrer le gain sur votre activité :
+{{lien_calculateur}}
+
+Si cela vous intéresse, répondez « oui » et je vous recontacte.
 
 {{signature}}`,
 
   alimentaire: `Bonjour à toute l’équipe de {{NomEntreprise}},
 
-Je suis Pierre-Olivier, fondateur de FynUp. J’accompagne les entreprises dans leurs projets de gestion et de digitalisation, avec des outils pratiques qui simplifient le suivi de leur activité.
+Sur 200 000 CHF d’achats par an, 10 % d’invendus ou de pertes, c’est 20 000 CHF. Sans suivi du stock, difficile de le voir.
 
-Entre les achats, les stocks, la production et les ventes, il n’est pas toujours évident de savoir ce qui se vend le mieux, ce qui reste en stock et ce qui rapporte réellement.
+Je suis Pierre-Olivier D’Oria, consultant FynUp. J’ai développé un dashboard accessible sur natel ou PC. Ventes, stocks et marges en un coup d’œil.
 
-J’ai développé un dashboard accessible sur natel ou PC, qui rassemble les ventes, les stocks et les marges en un coup d’œil. Une façon plus simple de garder une vue d’ensemble, sans devoir construire et maintenir un tableur complexe.
+Pas de discours. Je vous le montre en 15 minutes, avec vos chiffres.
 
-En 1 minute, quelques exemples de ce que je peux mettre en place, et de quoi estimer vos gains :
-{{lien}}
+J’ai aussi d’autres solutions qui peuvent vous faire gagner du temps, de la productivité et de l’argent. Je les utilise moi-même au quotidien.
 
-Si vous souhaitez en savoir plus, répondez simplement « oui » et je vous rappelle. Nous pourrons en discuter sans engagement.
+Une minute de vidéo :
+{{lien_video}}
+
+Pour chiffrer le gain sur votre activité :
+{{lien_calculateur}}
+
+Si cela vous intéresse, répondez « oui » et je vous recontacte.
 
 {{signature}}`,
 
   generique: `Bonjour à toute l’équipe de {{NomEntreprise}},
 
-Je suis Pierre-Olivier, fondateur de FynUp. J’accompagne les entreprises dans leurs projets de gestion et de digitalisation, avec des outils pratiques qui simplifient le suivi de leur activité.
+Une tâche répétitive de 30 minutes par jour. À 35 CHF de l’heure, sur 220 jours, cela fait 3 850 CHF par an. Pour une seule personne.
 
-Chaque entreprise a sa façon de travailler, ses habitudes et ses contraintes. Pourtant, les logiciels standards obligent souvent à s’adapter à l’outil, alors que l’inverse serait bien plus pratique.
+Je suis Pierre-Olivier D’Oria, consultant FynUp. Je crée des outils sur mesure : devis, finances, suivi clients, automatisation. Je commence par repérer ce qui vous prend du temps, je le chiffre, puis je construis l’outil.
 
-Chez FynUp, je développe des outils adaptés aux besoins concrets des entreprises : devis, suivi financier, gestion clients et automatisation des tâches répétitives.
+Ces outils peuvent vous faire gagner du temps, de la productivité et de l’argent. Je les utilise moi-même au quotidien.
 
-L’objectif est simple : gagner du temps, simplifier la gestion et pouvoir se concentrer davantage sur son activité.
+En 15 minutes, on chiffre ensemble la tâche qui vous coûte le plus.
 
-En 1 minute, quelques exemples de ce que je peux mettre en place, et de quoi estimer vos gains :
-{{lien}}
+Une minute de vidéo :
+{{lien_video}}
 
-Si une idée vous interpelle, répondez simplement « oui » et je vous rappelle. Nous pourrons en discuter sans engagement.
+Pour chiffrer le gain sur votre activité :
+{{lien_calculateur}}
+
+Si cela vous intéresse, répondez « oui » et je vous recontacte.
 
 {{signature}}`,
 };
@@ -143,7 +167,8 @@ async function classifySecteur(nom: string, secteurHint: string, serviceCible: s
 function fillTemplate(secteur: Secteur, nom: string): string {
   let text = TEMPLATES[secteur]
     .replace(/\{\{NomEntreprise\}\}/g, nom)
-    .replace(/\{\{lien\}\}/g, LIEN_URL)
+    .replace(/\{\{lien_video\}\}/g, LIEN_VIDEO)
+    .replace(/\{\{lien_calculateur\}\}/g, LIEN_CALCULATEUR)
     .replace(/\{\{signature\}\}/g, SIGNATURE);
   // Filet de sécurité : zéro tiret cadratin toléré (règle absolue).
   text = text.replace(/—/g, ",");
