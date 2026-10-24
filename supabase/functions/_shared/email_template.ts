@@ -6,9 +6,8 @@
 
 import { callClaude } from "./anthropic.ts";
 
-// Deux liens séparés : la vidéo (valeur de production actuelle) et le calculateur.
+// Un seul lien : la page vidéo (elle contient aussi la présentation).
 const LIEN_VIDEO = "https://video.fynup-consulting.ch";
-const LIEN_CALCULATEUR = "https://presentation.fynup-consulting.ch";
 
 const SIGNATURE = "Excellente journée,\n\nPierre-Olivier D’Oria\nFynUp Consulting\n+41 76 506 28 71";
 
@@ -42,9 +41,6 @@ J’ai aussi d’autres solutions qui peuvent vous faire gagner du temps, de la 
 Une minute de vidéo :
 {{lien_video}}
 
-Pour chiffrer le gain sur votre activité :
-{{lien_calculateur}}
-
 Si cela vous intéresse, répondez « oui » et je vous recontacte.
 
 {{signature}}`,
@@ -61,9 +57,6 @@ J’ai aussi d’autres solutions qui peuvent vous faire gagner du temps, de la 
 
 Une minute de vidéo :
 {{lien_video}}
-
-Pour chiffrer le gain sur votre activité :
-{{lien_calculateur}}
 
 Si cela vous intéresse, répondez « oui » et je vous recontacte.
 
@@ -82,9 +75,6 @@ J’ai aussi d’autres solutions qui peuvent vous faire gagner du temps, de la 
 Une minute de vidéo :
 {{lien_video}}
 
-Pour chiffrer le gain sur votre activité :
-{{lien_calculateur}}
-
 Si cela vous intéresse, répondez « oui » et je vous recontacte.
 
 {{signature}}`,
@@ -102,9 +92,6 @@ J’ai aussi d’autres solutions qui peuvent vous faire gagner du temps, de la 
 Une minute de vidéo :
 {{lien_video}}
 
-Pour chiffrer le gain sur votre activité :
-{{lien_calculateur}}
-
 Si cela vous intéresse, répondez « oui » et je vous recontacte.
 
 {{signature}}`,
@@ -121,9 +108,6 @@ En 15 minutes, on chiffre ensemble la tâche qui vous coûte le plus.
 
 Une minute de vidéo :
 {{lien_video}}
-
-Pour chiffrer le gain sur votre activité :
-{{lien_calculateur}}
 
 Si cela vous intéresse, répondez « oui » et je vous recontacte.
 
@@ -168,7 +152,6 @@ function fillTemplate(secteur: Secteur, nom: string): string {
   let text = TEMPLATES[secteur]
     .replace(/\{\{NomEntreprise\}\}/g, nom)
     .replace(/\{\{lien_video\}\}/g, LIEN_VIDEO)
-    .replace(/\{\{lien_calculateur\}\}/g, LIEN_CALCULATEUR)
     .replace(/\{\{signature\}\}/g, SIGNATURE);
   // Filet de sécurité : zéro tiret cadratin toléré (règle absolue).
   text = text.replace(/—/g, ",");
