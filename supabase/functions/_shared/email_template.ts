@@ -46,7 +46,7 @@ ${outil}
 
 ${QUI_JE_SUIS}
 
-Une minute de vidéo pour vous montrer quelques exemples¤:
+Moins d’une minute de vidéo pour découvrir mes services¤:
 {{lien}}
 
 ${cta}
@@ -160,7 +160,7 @@ export function generateRelance(nom: string, secteur: string): string {
 
 Un petit mot pour ne pas laisser mon mail se perdre dans votre boîte. Je sais que ${phrase}.
 
-La vidéo dure une minute¤:
+La vidéo dure moins d’une minute¤:
 ${LIEN_URL}
 
 Si ça vous parle, répondez simplement «¤oui¤». Je m’occupe du reste.
