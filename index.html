@@ -1,10 +1,20 @@
 <!doctype html>
-<html lang="en">
+<html lang="fr">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>lead-gen-app</title>
+    <title>FynUp Lead Gen</title>
+    <script>
+      // Pose le thème avant le premier affichage pour éviter un éclair clair en mode sombre.
+      (function () {
+        try {
+          var m = localStorage.getItem("fynup-theme");
+          var dark = m === "dark" || (m !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+          document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

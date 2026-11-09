@@ -36,7 +36,7 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-neutral-50 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-page px-4">
       <div className="w-full max-w-sm rounded-xl border border-neutral-200 bg-white p-8 shadow-sm">
         <h1 className="text-lg font-semibold text-neutral-900">FynUp Lead Gen</h1>
         <p className="mt-1 text-sm text-neutral-500">Connexion par lien magique.</p>

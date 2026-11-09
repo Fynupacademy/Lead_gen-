@@ -254,7 +254,7 @@ export default function DashboardScreen({ onGoToLeads }: { onGoToLeads: () => vo
       ) : (
         <>
           {/* Chiffres clés */}
-          <div className="rounded-2xl bg-fyn-ink p-4 sm:p-5">
+          <div className="rounded-2xl bg-fyn-ink p-4 sm:p-5 dark:ring-1 dark:ring-white/10">
             <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
               <Kpi label="Leads" value={total} sub={`${stats.sansEmail.length} sans email`} />
               <Kpi label="À envoyer" value={stats.prets.length} sub="prêts, avec email" />
@@ -456,7 +456,7 @@ export default function DashboardScreen({ onGoToLeads }: { onGoToLeads: () => vo
                       setRowsShown(ROWS_STEP);
                     }}
                     className={`rounded-full px-3 py-1 text-xs font-medium ${
-                      active ? "bg-fyn-ink text-white" : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+                      active ? "bg-fyn-ink text-white dark:bg-fyn dark:text-fyn-ink" : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
                     }`}
                   >
                     {s === "tous" ? "Tous" : STATUT_LABELS[s]} <span className="opacity-60">{count}</span>

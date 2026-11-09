@@ -6,6 +6,7 @@ import SearchScreen from "./components/SearchScreen";
 import LeadsScreen from "./components/LeadsScreen";
 import SendScreen from "./components/SendScreen";
 import DashboardScreen from "./components/DashboardScreen";
+import ThemeToggle from "./components/ThemeToggle";
 
 type Screen = "recherche" | "leads" | "envoi" | "dashboard";
 
@@ -36,19 +37,22 @@ export default function App() {
   ];
 
   return (
-    <div className="min-h-screen bg-neutral-50">
+    <div className="min-h-screen bg-page">
       <header className="border-b border-neutral-200 bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <div>
             <h1 className="text-sm font-semibold text-neutral-900">FynUp Lead Gen</h1>
             <p className="text-xs text-neutral-400">{session.user.email}</p>
           </div>
-          <button
-            onClick={() => supabase.auth.signOut()}
-            className="text-sm text-neutral-500 hover:text-neutral-900"
-          >
-            Déconnexion
-          </button>
+          <div className="flex items-center gap-4">
+            <ThemeToggle />
+            <button
+              onClick={() => supabase.auth.signOut()}
+              className="text-sm text-neutral-500 hover:text-neutral-900"
+            >
+              Déconnexion
+            </button>
+          </div>
         </div>
         <nav className="mx-auto flex max-w-5xl gap-1 px-6">
           {tabs.map((t) => (

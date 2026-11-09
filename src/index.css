@@ -6,12 +6,67 @@
   --color-fyn-dark: #1a7a99;
   --color-fyn-light: #e8f7fc;
   --color-fyn-ink: #1a1e2e;
+  --color-page: #f8f7f5;
 }
+
+/* Les variantes `dark:` suivent l'attribut data-theme posé par le sélecteur de thème. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 :root {
   color-scheme: light;
 }
 
 body {
-  background-color: #f8f7f5;
+  background-color: var(--color-page);
 }
+
+/* ---------- Mode sombre ----------
+   L'échelle « neutral » de Tailwind est redéfinie : tout l'existant (text-neutral-*, border-neutral-*,
+   bg-neutral-*) bascule d'un coup, sans toucher chaque écran. Les couleurs d'état (vert, ambre,
+   rouge, turquoise) sont adoucies pour rester lisibles sur fond sombre. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-page: #0e131d;
+  --color-neutral-50: #1c2233;
+  --color-neutral-100: #232a3d;
+  --color-neutral-200: #2d3550;
+  --color-neutral-300: #3d4763;
+  --color-neutral-400: #7f89a1;
+  --color-neutral-500: #9aa4ba;
+  --color-neutral-600: #b4bdcf;
+  --color-neutral-700: #cdd4e1;
+  --color-neutral-800: #e1e6ef;
+  --color-neutral-900: #f1f5f9;
+}
+
+[data-theme="dark"] .bg-white {
+  background-color: #171c2a;
+}
+
+/* Boutons principaux (fond neutral-900 + texte blanc) : turquoise FynUp en mode sombre. */
+[data-theme="dark"] .bg-neutral-900 {
+  background-color: var(--color-fyn);
+  color: var(--color-fyn-ink);
+}
+
+[data-theme="dark"] .bg-emerald-50 { background-color: rgb(16 185 129 / 0.14); }
+[data-theme="dark"] .bg-emerald-100 { background-color: rgb(16 185 129 / 0.22); }
+[data-theme="dark"] .text-emerald-600 { color: #34d399; }
+[data-theme="dark"] .text-emerald-700 { color: #6ee7b7; }
+
+[data-theme="dark"] .bg-amber-50 { background-color: rgb(245 158 11 / 0.14); }
+[data-theme="dark"] .bg-amber-100,
+[data-theme="dark"] .hover\:bg-amber-100:hover { background-color: rgb(245 158 11 / 0.24); }
+[data-theme="dark"] .border-amber-300 { border-color: rgb(245 158 11 / 0.5); }
+[data-theme="dark"] .text-amber-700 { color: #fcd34d; }
+
+[data-theme="dark"] .bg-red-50,
+[data-theme="dark"] .hover\:bg-red-50:hover { background-color: rgb(239 68 68 / 0.14); }
+[data-theme="dark"] .border-red-300 { border-color: rgb(239 68 68 / 0.5); }
+[data-theme="dark"] .text-red-600,
+[data-theme="dark"] .text-red-700,
+[data-theme="dark"] .hover\:text-red-600:hover { color: #f87171; }
+
+[data-theme="dark"] .bg-fyn-light,
+[data-theme="dark"] .hover\:bg-fyn-light:hover { background-color: rgb(41 171 212 / 0.16); }
+[data-theme="dark"] .text-fyn-dark { color: #62cbe8; }
