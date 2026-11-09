@@ -162,6 +162,8 @@ export function generateRelance(nom: string, secteur: string): string {
 
 Un petit mot pour ne pas laisser mon mail se perdre dans votre boîte. Je sais que ${phrase}.
 
+Pour en savoir plus sur FynUp¤: www.fynup-consulting.ch
+
 La vidéo dure moins d’une minute¤:
 ${LIEN_URL}
 
