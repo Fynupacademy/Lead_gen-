@@ -5,9 +5,9 @@ import Login from "./components/Login";
 import SearchScreen from "./components/SearchScreen";
 import LeadsScreen from "./components/LeadsScreen";
 import SendScreen from "./components/SendScreen";
-import RecapScreen from "./components/RecapScreen";
+import DashboardScreen from "./components/DashboardScreen";
 
-type Screen = "recherche" | "leads" | "envoi" | "recap";
+type Screen = "recherche" | "leads" | "envoi" | "dashboard";
 
 export default function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
@@ -32,7 +32,7 @@ export default function App() {
     { id: "recherche", label: "1. Recherche" },
     { id: "leads", label: "2. Leads" },
     { id: "envoi", label: "3. Envoi" },
-    { id: "recap", label: "4. Récap" },
+    { id: "dashboard", label: "4. Dashboard" },
   ];
 
   return (
@@ -57,7 +57,7 @@ export default function App() {
               onClick={() => setScreen(t.id)}
               className={`rounded-t-lg px-4 py-2 text-sm font-medium ${
                 screen === t.id
-                  ? "border-b-2 border-neutral-900 text-neutral-900"
+                  ? "border-b-2 border-fyn text-neutral-900"
                   : "text-neutral-400 hover:text-neutral-700"
               }`}
             >
@@ -73,7 +73,7 @@ export default function App() {
         {screen === "envoi" && (
           <SendScreen selected={selected} onClearSelected={() => setSelected(new Set())} />
         )}
-        {screen === "recap" && <RecapScreen />}
+        {screen === "dashboard" && <DashboardScreen onGoToLeads={() => setScreen("leads")} />}
       </main>
     </div>
   );

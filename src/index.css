@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+/* Palette FynUp (turquoise de la marque + fond nuit des apps FynUp). */
+@theme {
+  --color-fyn: #29abd4;
+  --color-fyn-dark: #1a7a99;
+  --color-fyn-light: #e8f7fc;
+  --color-fyn-ink: #1a1e2e;
+}
+
 :root {
   color-scheme: light;
 }

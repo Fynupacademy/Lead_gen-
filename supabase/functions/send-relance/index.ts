@@ -7,7 +7,7 @@
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { corsHeaders, handleOptions } from "../_shared/cors.ts";
-import { RELANCE_SUBJECT, generateRelance } from "../_shared/email_template.ts";
+import { generateRelance, relanceSubjectFor } from "../_shared/email_template.ts";
 import { sendEmail } from "../_shared/smtp.ts";
 
 const SEPT_JOURS_MS = 7 * 24 * 60 * 60 * 1000;
@@ -64,8 +64,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const body = generateRelance(lead.nom);
-    const result = await sendEmail(lead.email, RELANCE_SUBJECT, body);
+    const body = generateRelance(lead.nom, lead.secteur || "");
+    const result = await sendEmail(lead.email, relanceSubjectFor(lead.secteur || ""), body);
 
     await supabase.from("envois").insert({
       lead_id: lead.id,
