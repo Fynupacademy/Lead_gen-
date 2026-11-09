@@ -9,8 +9,7 @@ import { callClaude } from "./anthropic.ts";
 // Page de prospection (vidéo + plaquette-calculateur), indépendante du site FynUp.
 const LIEN_URL = "https://video.fynup-consulting.ch";
 
-const SIGNATURE = "Pierre-Olivier D’Oria\nFynUp Consulting\n+41 76 506 28 71";
-const SIGNATURE_RELANCE = "Belle journée,\n\nPierre-Olivier D’Oria\n+41 76 506 28 71";
+const SIGNATURE = "Je vous souhaite une excellente journée,\n\nPierre-Olivier D’Oria\nFynUp Consulting\n+41 76 506 28 71";
 
 export type Secteur = "batiment" | "alimentaire" | "personne" | "generique" | "restauration";
 const KNOWN_SECTEURS: Secteur[] = ["batiment", "alimentaire", "personne", "generique", "restauration"];
@@ -32,7 +31,7 @@ export function subjectFor(secteur: string): string {
 // ¤ = espace insécable (évite un « : » ou un montant coupé en fin de ligne), converti par nb().
 const QUI_JE_SUIS = `Je suis Pierre-Olivier D’Oria, de FynUp Consulting. Je conçois des outils sur mesure pour votre gestion de tous les jours, accessibles sur natel ou sur PC. Certifié Anthropic, j’utilise l’intelligence artificielle au quotidien pour vous faire gagner du temps, et je peux aussi vous aider à l’utiliser.
 
-J’ai plus de 20 ans de gestion, jusqu’à 15¤millions de CA. Pour améliorer vos résultats, ou si la situation est compliquée, je peux aussi vous accompagner.`;
+Avec plus de 20 ans d’expérience sur le terrain, j’ai piloté la gestion opérationnelle et financière de portefeuilles allant jusqu’à 15¤millions de chiffre d’affaires. Je connais les problématiques du quotidien d’une entreprise et je peux vous accompagner, pour améliorer vos résultats ou si la situation est compliquée.`;
 
 function nb(text: string): string {
   return text.replaceAll("¤", String.fromCharCode(160));
@@ -166,7 +165,7 @@ ${LIEN_URL}
 
 Si ça vous parle, répondez simplement «¤oui¤». Je m’occupe du reste.
 
-${SIGNATURE_RELANCE}`;
+${SIGNATURE}`;
   return nb(text.replace(/—/g, ","));
 }
 
