@@ -46,6 +46,8 @@ ${outil}
 
 ${QUI_JE_SUIS}
 
+Pour en savoir plus sur FynUp¤: www.fynup-consulting.ch
+
 Moins d’une minute de vidéo pour découvrir mes services¤:
 {{lien}}
 
