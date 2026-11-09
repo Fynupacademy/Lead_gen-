@@ -70,3 +70,11 @@ body {
 [data-theme="dark"] .bg-fyn-light,
 [data-theme="dark"] .hover\:bg-fyn-light:hover { background-color: rgb(41 171 212 / 0.16); }
 [data-theme="dark"] .text-fyn-dark { color: #62cbe8; }
+
+/* Listes déroulantes : les menus à fond transparent (statuts) ouvraient une liste blanche au texte
+   clair, illisible. On fixe explicitement le fond et le texte des options. */
+[data-theme="dark"] select option,
+[data-theme="dark"] select optgroup {
+  background-color: #171c2a;
+  color: #f1f5f9;
+}
