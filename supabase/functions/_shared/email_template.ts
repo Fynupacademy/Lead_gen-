@@ -150,8 +150,10 @@ const RELANCE_OUVERTURE =
 
 const RELANCE_CONFRERES = "Certains de vos confrères l’utilisent déjà.";
 
-const RELANCE_CTA_FIN =
-  "Plutôt cette semaine ou la semaine prochaine ? Répondez-moi simplement, ou appelez-moi au +41 76 506 28 71.";
+const RELANCE_CTA_FIN = "Plutôt cette semaine ou la semaine prochaine ? Répondez-moi simplement.";
+
+const RELANCE_APPEL =
+  "Vous pouvez aussi m’appeler au +41 76 506 28 71 pour plus d’informations. Je vous renseigne sans engagement.";
 
 const RELANCE_SIGNATURE =
   "Je vous souhaite une excellente journée,\n\nPierre-Olivier D’Oria\nFynUp Consulting\nwww.fynup-consulting.ch";
@@ -207,6 +209,8 @@ ${RELANCE_OUVERTURE}
 ${r.corps} ${RELANCE_CONFRERES}
 
 10¤minutes pour vous le montrer ${r.demo} ? ${RELANCE_CTA_FIN}
+
+${RELANCE_APPEL}
 
 ${RELANCE_SIGNATURE}`;
   return nb(text.replace(/—/g, ","));
