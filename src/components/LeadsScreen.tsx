@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
+import RelanceDialog from "./RelanceDialog";
 import {
   DEFAULT_EMAIL_SUBJECT,
   SECTEUR_LABELS,
@@ -11,6 +12,7 @@ import {
 
 const HISTORIQUE = "__historique__";
 const A_RELANCER = "__a_relancer__";
+const SANS_EMAIL = "__sans_email__";
 
 function scoreColor(score: number | null): string {
   if (score === null) return "bg-neutral-100 text-neutral-500";
@@ -39,7 +41,7 @@ export default function LeadsScreen({
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewSaving, setPreviewSaving] = useState(false);
   const [previewSaved, setPreviewSaved] = useState(false);
-  const [relanceSending, setRelanceSending] = useState<Set<string>>(new Set());
+  const [relanceLead, setRelanceLead] = useState<Lead | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [editingEmailId, setEditingEmailId] = useState<string | null>(null);
   const [editingEmailValue, setEditingEmailValue] = useState("");
@@ -82,6 +84,8 @@ export default function LeadsScreen({
         if ((l.score_ia ?? 0) < minScore) return false;
         if (statutFilter === A_RELANCER) {
           if (!isRelanceEligible(l)) return false;
+        } else if (statutFilter === SANS_EMAIL) {
+          if (l.email) return false;
         } else if (statutFilter !== "tous" && l.statut_envoi !== statutFilter) {
           return false;
         }
@@ -96,6 +100,27 @@ export default function LeadsScreen({
   const filtered = sortedByScore;
 
   const relanceEligibleCount = useMemo(() => leads.filter(isRelanceEligible).length, [leads]);
+  const sansEmailCount = useMemo(() => leads.filter((l) => !l.email).length, [leads]);
+
+  // Sélection groupée : « tout sélectionner » et la suppression ne portent que sur les leads
+  // actuellement affichés, jamais sur une sélection cachée par un filtre.
+  const selectedVisible = filtered.filter((l) => selected.has(l.id));
+  const allVisibleSelected = filtered.length > 0 && selectedVisible.length === filtered.length;
+
+  function toggleAllVisible() {
+    const next = new Set(selected);
+    if (allVisibleSelected) filtered.forEach((l) => next.delete(l.id));
+    else filtered.forEach((l) => next.add(l.id));
+    onSelectedChange(next);
+  }
+
+  function showSansEmail() {
+    setRequeteFilter(HISTORIQUE);
+    setStatutFilter(SANS_EMAIL);
+    setServiceFilter("tous");
+    setSecteurFilter("tous");
+    setMinScore(0);
+  }
 
   async function changeStatut(id: string, statut: string) {
     setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, statut_envoi: statut as Lead["statut_envoi"] } : l)));
@@ -160,24 +185,10 @@ export default function LeadsScreen({
     setPreviewSaved(true);
   }
 
-  async function sendRelance(lead: Lead) {
-    setRelanceSending((prev) => new Set(prev).add(lead.id));
-    const { data, error } = await supabase.functions.invoke("send-relance", {
-      body: { leadId: lead.id },
-    });
-    setRelanceSending((prev) => {
-      const next = new Set(prev);
-      next.delete(lead.id);
-      return next;
-    });
-    if (error || !data?.success) {
-      alert(`Échec de la relance : ${data?.error || error?.message || "erreur inconnue"}`);
-      return;
-    }
+  function onRelanceSent(lead: Lead) {
+    const now = new Date().toISOString();
     setLeads((prev) =>
-      prev.map((l) =>
-        l.id === lead.id ? { ...l, statut_envoi: "relance_envoyee", date_relance: new Date().toISOString() } : l,
-      ),
+      prev.map((l) => (l.id === lead.id ? { ...l, statut_envoi: "relance_envoyee", date_relance: now } : l)),
     );
   }
 
@@ -193,14 +204,31 @@ export default function LeadsScreen({
   }
 
   async function deleteSelected() {
-    if (selected.size === 0) return;
-    if (!confirm(`Supprimer ces ${selected.size} leads ?`)) return;
+    const toDelete = selectedVisible;
+    if (toDelete.length === 0) return;
+    const contacted = toDelete.filter((l) => l.statut_envoi !== "en_attente").length;
+    const warning = contacted > 0 ? `\n\nAttention : ${contacted} d’entre eux ont déjà été contactés.` : "";
+    if (!confirm(`Supprimer ces ${toDelete.length} leads ? Cette action est définitive.${warning}`)) return;
     setDeleting(true);
-    const ids = Array.from(selected);
-    await supabase.from("leads").delete().in("id", ids);
-    setLeads((prev) => prev.filter((l) => !selected.has(l.id)));
-    onSelectedChange(new Set());
+    const ids = toDelete.map((l) => l.id);
+    const deleted = new Set<string>();
+    let failure = "";
+    // Par lots, pour ne pas dépasser la taille d'une requête quand il y en a beaucoup.
+    for (let k = 0; k < ids.length; k += 50) {
+      const chunk = ids.slice(k, k + 50);
+      const { error } = await supabase.from("leads").delete().in("id", chunk);
+      if (error) {
+        failure = error.message;
+        break;
+      }
+      chunk.forEach((id) => deleted.add(id));
+    }
+    setLeads((prev) => prev.filter((l) => !deleted.has(l.id)));
+    const next = new Set(selected);
+    deleted.forEach((id) => next.delete(id));
+    onSelectedChange(next);
     setDeleting(false);
+    if (failure) alert(`Suppression interrompue : ${failure}`);
   }
 
   function startEditEmail(lead: Lead) {
@@ -259,6 +287,9 @@ export default function LeadsScreen({
             {relanceEligibleCount > 0 && (
               <option value={A_RELANCER}>À relancer (7j+, {relanceEligibleCount})</option>
             )}
+            {sansEmailCount > 0 && (
+              <option value={SANS_EMAIL}>Sans email ({sansEmailCount})</option>
+            )}
             {Object.entries(STATUT_LABELS).map(([k, v]) => (
               <option key={k} value={k}>{v}</option>
             ))}
@@ -291,13 +322,25 @@ export default function LeadsScreen({
           >
             Sélectionner score ≥ 3
           </button>
-          {selected.size > 0 && (
+          {sansEmailCount > 0 && (
+            <button
+              onClick={showSansEmail}
+              className="rounded-lg border border-neutral-300 px-3 py-1.5 text-neutral-700 hover:bg-neutral-50"
+            >
+              Voir les sans email ({sansEmailCount})
+            </button>
+          )}
+          <label className="flex items-center gap-2 text-neutral-700">
+            <input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} />
+            Tout sélectionner ({filtered.length})
+          </label>
+          {selectedVisible.length > 0 && (
             <button
               onClick={deleteSelected}
               disabled={deleting}
               className="rounded-lg border border-red-300 px-3 py-1.5 text-red-600 hover:bg-red-50 disabled:opacity-50"
             >
-              Supprimer la sélection ({selected.size})
+              {deleting ? "Suppression..." : `Supprimer la sélection (${selectedVisible.length})`}
             </button>
           )}
           <span className="text-neutral-500">{selected.size} sélectionné(s)</span>
@@ -330,7 +373,6 @@ export default function LeadsScreen({
                       <input
                         type="checkbox"
                         checked={selected.has(lead.id)}
-                        disabled={lead.statut_envoi !== "en_attente" || !lead.email}
                         onChange={() => toggle(lead.id)}
                       />
                     </td>
@@ -390,11 +432,10 @@ export default function LeadsScreen({
                         </select>
                         {isRelanceEligible(lead) && (
                           <button
-                            onClick={() => sendRelance(lead)}
-                            disabled={relanceSending.has(lead.id)}
-                            className="rounded-lg border border-amber-300 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+                            onClick={() => setRelanceLead(lead)}
+                            className="rounded-lg border border-amber-300 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700 hover:bg-amber-100"
                           >
-                            {relanceSending.has(lead.id) ? "Envoi..." : "Relancer"}
+                            Relancer
                           </button>
                         )}
                       </div>
@@ -436,7 +477,6 @@ export default function LeadsScreen({
                     type="checkbox"
                     className="mt-1 h-5 w-5 shrink-0"
                     checked={selected.has(lead.id)}
-                    disabled={lead.statut_envoi !== "en_attente" || !lead.email}
                     onChange={() => toggle(lead.id)}
                   />
                   <div className="min-w-0 flex-1">
@@ -504,11 +544,10 @@ export default function LeadsScreen({
                     </select>
                     {isRelanceEligible(lead) && (
                       <button
-                        onClick={() => sendRelance(lead)}
-                        disabled={relanceSending.has(lead.id)}
-                        className="mt-2 w-full rounded-lg border border-amber-300 bg-amber-50 px-2 py-2 text-sm font-medium text-amber-700 disabled:opacity-50"
+                        onClick={() => setRelanceLead(lead)}
+                        className="mt-2 w-full rounded-lg border border-amber-300 bg-amber-50 px-2 py-2 text-sm font-medium text-amber-700"
                       >
-                        {relanceSending.has(lead.id) ? "Envoi..." : "Envoyer la relance"}
+                        Relancer
                       </button>
                     )}
                   </div>
@@ -517,6 +556,10 @@ export default function LeadsScreen({
             ))}
           </div>
         </>
+      )}
+
+      {relanceLead && (
+        <RelanceDialog lead={relanceLead} onClose={() => setRelanceLead(null)} onSent={onRelanceSent} />
       )}
 
       {previewLead && (

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
+import RelanceDialog from "./RelanceDialog";
 import {
   RELANCE_DELAI_MS,
   SECTEUR_LABELS,
@@ -90,7 +91,7 @@ export default function DashboardScreen({ onGoToLeads }: { onGoToLeads: () => vo
   const [statutFilter, setStatutFilter] = useState<"tous" | Statut>("tous");
   const [secteurFilter, setSecteurFilter] = useState("tous");
   const [rowsShown, setRowsShown] = useState(ROWS_STEP);
-  const [relanceSending, setRelanceSending] = useState<Set<string>>(new Set());
+  const [relanceLead, setRelanceLead] = useState<Lead | null>(null);
 
   async function load() {
     setLoading(true);
@@ -176,19 +177,7 @@ export default function DashboardScreen({ onGoToLeads }: { onGoToLeads: () => vo
     await supabase.from("leads").update({ statut_envoi: statut }).eq("id", id);
   }
 
-  async function sendRelance(lead: Lead) {
-    if (!confirm(`Envoyer la relance à ${lead.nom} ?`)) return;
-    setRelanceSending((prev) => new Set(prev).add(lead.id));
-    const { data, error } = await supabase.functions.invoke("send-relance", { body: { leadId: lead.id } });
-    setRelanceSending((prev) => {
-      const next = new Set(prev);
-      next.delete(lead.id);
-      return next;
-    });
-    if (error || !data?.success) {
-      alert(`Échec de la relance : ${data?.error || error?.message || "erreur inconnue"}`);
-      return;
-    }
+  function onRelanceSent(lead: Lead) {
     const now = new Date().toISOString();
     setLeads((prev) =>
       prev.map((l) => (l.id === lead.id ? { ...l, statut_envoi: "relance_envoyee", date_relance: now } : l)),
@@ -199,11 +188,10 @@ export default function DashboardScreen({ onGoToLeads }: { onGoToLeads: () => vo
   function relanceButton(lead: Lead) {
     return (
       <button
-        onClick={() => sendRelance(lead)}
-        disabled={relanceSending.has(lead.id)}
-        className="shrink-0 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+        onClick={() => setRelanceLead(lead)}
+        className="shrink-0 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 hover:bg-amber-100"
       >
-        {relanceSending.has(lead.id) ? "Envoi..." : "Relancer"}
+        Relancer
       </button>
     );
   }
@@ -557,6 +545,10 @@ export default function DashboardScreen({ onGoToLeads }: { onGoToLeads: () => vo
             relances sont toujours manuelles.
           </p>
         </>
+      )}
+
+      {relanceLead && (
+        <RelanceDialog lead={relanceLead} onClose={() => setRelanceLead(null)} onSent={onRelanceSent} />
       )}
 
       {/* Guide */}

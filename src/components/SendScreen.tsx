@@ -62,8 +62,12 @@ export default function SendScreen({ selected, onClearSelected }: { selected: Se
     setCountdown(0);
   }
 
+  // Seuls les leads en attente et avec une adresse sont envoyés ; les autres sont ignorés (ils
+  // peuvent avoir été sélectionnés pour être supprimés).
+  const sendable = leads.filter((l) => l.statut_envoi === "en_attente" && l.email);
+
   async function handleStart() {
-    const toSend = leads.slice(0, dailyLimit);
+    const toSend = sendable.slice(0, dailyLimit);
     setRunning(true);
     setProgress(0);
     setLogs([]);
@@ -103,12 +107,20 @@ export default function SendScreen({ selected, onClearSelected }: { selected: Se
     <div>
       <h2 className="text-lg font-semibold text-neutral-900">Envoi des emails</h2>
       <p className="mt-1 text-sm text-neutral-500">
-        {leads.length} lead(s) sélectionné(s) depuis l'écran précédent.
+        {sendable.length} lead(s) prêt(s) à envoyer sur {leads.length} sélectionné(s) depuis l'écran précédent.
+        {leads.length > sendable.length && (
+          <span className="text-amber-700">
+            {" "}
+            {leads.length - sendable.length} ignoré(s) : déjà contactés ou sans email.
+          </span>
+        )}
       </p>
 
-      {leads.length === 0 ? (
+      {sendable.length === 0 ? (
         <p className="mt-6 rounded-lg bg-neutral-100 p-4 text-sm text-neutral-500">
-          Sélectionne des leads dans l'écran "Leads" avant de lancer un envoi.
+          {leads.length === 0
+            ? 'Sélectionne des leads dans l\'écran "Leads" avant de lancer un envoi.'
+            : "Aucun des leads sélectionnés n'est prêt : ils sont déjà contactés ou sans adresse email."}
         </p>
       ) : (
         <>
@@ -154,7 +166,7 @@ export default function SendScreen({ selected, onClearSelected }: { selected: Se
                 onClick={handleStart}
                 className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white"
               >
-                Lancer l'envoi ({Math.min(dailyLimit, leads.length)} email(s))
+                Lancer l'envoi ({Math.min(dailyLimit, sendable.length)} email(s))
               </button>
             ) : (
               <button
@@ -166,7 +178,7 @@ export default function SendScreen({ selected, onClearSelected }: { selected: Se
             )}
             {running && (
               <span className="text-sm text-neutral-500">
-                {progress}/{Math.min(dailyLimit, leads.length)} envoyés
+                {progress}/{Math.min(dailyLimit, sendable.length)} envoyés
                 {countdown > 0 && ` — prochain envoi dans ${countdown}s`}
               </span>
             )}

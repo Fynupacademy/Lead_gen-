@@ -141,35 +141,74 @@ export interface GeneratedEmail {
   secteur: Secteur;
 }
 
-// Relance manuelle (7 jours après l'envoi, jamais automatique) : objet « Re: <objet du premier
-// mail> », courte phrase adaptée au métier, même lien. Un seul template déterministe par secteur.
-export function relanceSubjectFor(secteur: string): string {
-  return `Re: ${subjectFor(secteur)}`;
-}
+// Relance manuelle (7 jours après l'envoi, jamais automatique). Texte validé par Pierre-Olivier :
+// ouverture commune (empathie sur le temps), résultat concret du métier, « certains de vos
+// confrères », choix simple en fin de mail. Objet propre à chaque métier, sans « Re: »
+// (un faux « Re: » est vu comme trompeur). Pas de vidéo : l'objectif est un échange de 10 minutes.
+const RELANCE_OUVERTURE =
+  "Je sais que vous êtes très sollicités par mail. C’est justement pour ça que j’ai créé ce service¤: vous faire gagner du temps, pas vous en prendre.";
 
-const RELANCE_PHRASES: Record<Secteur, string> = {
-  batiment: "vous êtes sur les chantiers toute la journée",
-  alimentaire: "vous avez la tête dans le service",
-  restauration: "le service prend tout votre temps",
-  personne: "vos journées sont bien remplies entre les rendez-vous",
-  generique: "vos journées sont bien remplies",
+const RELANCE_CONFRERES = "Certains de vos confrères l’utilisent déjà.";
+
+const RELANCE_CTA_FIN =
+  "Plutôt cette semaine ou la semaine prochaine ? Répondez-moi simplement, ou appelez-moi au +41 76 506 28 71.";
+
+const RELANCE_SIGNATURE =
+  "Je vous souhaite une excellente journée,\n\nPierre-Olivier D’Oria\nFynUp Consulting\nwww.fynup-consulting.ch";
+
+const RELANCES: Record<Secteur, { subject: string; corps: string; demo: string }> = {
+  batiment: {
+    subject: "Votre devis dicté sur le chantier, facture QR comprise",
+    corps:
+      "Sur le chantier, vous dictez le devis avec votre voix. Il est prêt à envoyer, et la facture QR, aux normes suisses, suit en un clic. Fini les soirées devant l’ordinateur.",
+    demo: "sur un de vos vrais devis",
+  },
+  restauration: {
+    subject: "Vos marges du jour, sans attendre la fin du mois",
+    corps:
+      "Pendant le service, pas le temps de regarder les chiffres. Pourtant, un seul point de coût matières en trop, c’est 4¤000¤CHF par an sur 400¤000¤CHF de chiffre d’affaires. Avec le tableau de bord, vous voyez vos coûts et vos marges jour après jour, sur natel ou sur PC.",
+    demo: "avec vos vrais chiffres",
+  },
+  alimentaire: {
+    subject: "Vos invendus visibles avant qu’ils ne coûtent",
+    corps:
+      "Entre les achats, la production et les ventes, les invendus passent inaperçus. Sur 200¤000¤CHF d’achats, 10¤% de pertes, c’est 20¤000¤CHF. Avec le tableau de bord, vous voyez ventes, stocks et marges en un coup d’œil, sur natel ou sur PC.",
+    demo: "avec vos vrais chiffres",
+  },
+  personne: {
+    subject: "Votre chiffre d’affaires en un coup d’œil",
+    corps:
+      "Entre les rendez-vous, les prestations et la caisse, le suivi du chiffre d’affaires passe au second plan. Avec le tableau de bord, vous voyez votre chiffre d’affaires et vos encaissements en un coup d’œil, sur natel ou sur PC.",
+    demo: "avec vos vrais chiffres",
+  },
+  generique: {
+    subject: "Moins d’administratif, plus de temps pour votre métier",
+    corps:
+      "Les logiciels standards vous obligent à vous adapter à l’outil. Ici, c’est l’inverse¤: devis, suivi financier, gestion des clients, tâches répétitives automatisées, sur mesure pour votre façon de travailler.",
+    demo: "sur un cas concret de votre quotidien",
+  },
 };
 
-export function generateRelance(nom: string, secteur: string): string {
+function relanceKey(secteur: string): Secteur {
   const key = (secteur || "").toLowerCase() as Secteur;
-  const phrase = RELANCE_PHRASES[KNOWN_SECTEURS.includes(key) ? key : "generique"];
+  return KNOWN_SECTEURS.includes(key) ? key : "generique";
+}
+
+export function relanceSubjectFor(secteur: string): string {
+  return RELANCES[relanceKey(secteur)].subject;
+}
+
+export function generateRelance(nom: string, secteur: string): string {
+  const r = RELANCES[relanceKey(secteur)];
   const text = `Bonjour à toute l’équipe de ${nom},
 
-Un petit mot pour ne pas laisser mon mail se perdre dans votre boîte. Je sais que ${phrase}.
+${RELANCE_OUVERTURE}
 
-Pour en savoir plus sur FynUp¤: www.fynup-consulting.ch
+${r.corps} ${RELANCE_CONFRERES}
 
-La vidéo dure moins d’une minute¤:
-${LIEN_URL}
+10¤minutes pour vous le montrer ${r.demo} ? ${RELANCE_CTA_FIN}
 
-Si ça vous parle, répondez simplement «¤oui¤». Je m’occupe du reste.
-
-${SIGNATURE}`;
+${RELANCE_SIGNATURE}`;
   return nb(text.replace(/—/g, ","));
 }
 

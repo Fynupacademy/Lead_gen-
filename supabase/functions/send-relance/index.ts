@@ -12,12 +12,24 @@ import { sendEmail } from "../_shared/smtp.ts";
 
 const SEPT_JOURS_MS = 7 * 24 * 60 * 60 * 1000;
 
+// Rôle du jeton (« authenticated » pour l'app connectée, « anon » pour la clé publique). La
+// signature est déjà vérifiée par verify_jwt ; on lit seulement le contenu.
+function callerRole(req: Request): string {
+  try {
+    const token = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
+    const payload = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    return JSON.parse(atob(payload)).role ?? "";
+  } catch {
+    return "";
+  }
+}
+
 Deno.serve(async (req) => {
   const preflight = handleOptions(req);
   if (preflight) return preflight;
 
   try {
-    const { leadId } = await req.json();
+    const { leadId, preview, subject: customSubject, body: customBody } = await req.json();
     if (!leadId) {
       return new Response(JSON.stringify({ error: "leadId requis" }), {
         status: 400,
@@ -64,8 +76,29 @@ Deno.serve(async (req) => {
       });
     }
 
-    const body = generateRelance(lead.nom, lead.secteur || "");
-    const result = await sendEmail(lead.email, relanceSubjectFor(lead.secteur || ""), body);
+    const defaultSubject = relanceSubjectFor(lead.secteur || "");
+    const defaultBody = generateRelance(lead.nom, lead.secteur || "");
+
+    // Aperçu : on renvoie le texte proposé sans rien envoyer ni modifier.
+    if (preview) {
+      return new Response(JSON.stringify({ subject: defaultSubject, body: defaultBody }), {
+        headers: { ...corsHeaders, "content-type": "application/json" },
+      });
+    }
+
+    // Texte modifié à la main dans l'app : accepté seulement d'un utilisateur connecté (pas de la
+    // clé publique « anon »), avec des limites de taille.
+    const hasCustom = typeof customSubject === "string" || typeof customBody === "string";
+    if (hasCustom && callerRole(req) !== "authenticated") {
+      return new Response(JSON.stringify({ error: "Texte personnalisé réservé à un utilisateur connecté." }), {
+        status: 403,
+        headers: { ...corsHeaders, "content-type": "application/json" },
+      });
+    }
+    const subject = (typeof customSubject === "string" && customSubject.trim().slice(0, 200)) || defaultSubject;
+    const body = (typeof customBody === "string" && customBody.trim().slice(0, 10000)) || defaultBody;
+
+    const result = await sendEmail(lead.email, subject, body);
 
     await supabase.from("envois").insert({
       lead_id: lead.id,
