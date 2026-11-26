@@ -3,6 +3,8 @@ import type { Lead } from "./types";
 // Rendez-vous Cal.com proposé aux prospects : l'analyse de 15 minutes offerte. Si le lien est
 // vide, les boutons Cal.com ne s'affichent pas.
 export const CAL_LINK: string = "https://cal.com/fynup-consulting/15min";
+// Liste des rendez-vous pris (page privée, connexion Cal.com requise).
+export const CAL_BOOKINGS_URL = "https://app.cal.com/bookings";
 
 export type TypeRetour = "renseignement" | "rdv" | "demo" | "pas_interesse" | "ne_plus_contacter";
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { RETOUR_LABELS, RETOUR_ORDER, RETOUR_STYLES, isPositive } from "../lib/retours";
+import { CAL_BOOKINGS_URL, CAL_LINK, RETOUR_LABELS, RETOUR_ORDER, RETOUR_STYLES, isPositive } from "../lib/retours";
 import { isToday } from "../lib/sending";
 import { supabase } from "../lib/supabase";
 import RelanceDialog from "./RelanceDialog";
@@ -97,6 +97,7 @@ export default function DashboardScreen({
   const [rowsShown, setRowsShown] = useState(ROWS_STEP);
   const [relanceLead, setRelanceLead] = useState<Lead | null>(null);
   const [retourLead, setRetourLead] = useState<Lead | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -256,6 +257,16 @@ export default function DashboardScreen({
     );
   }
 
+  async function copyCalLink() {
+    try {
+      await navigator.clipboard.writeText(CAL_LINK);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2500);
+    } catch {
+      prompt("Copie ton lien de rendez-vous :", CAL_LINK);
+    }
+  }
+
   const total = leads.length;
   const taux = pct(stats.repondus.length, stats.contactes.length);
   const visibleRows = tableRows.slice(0, rowsShown);
@@ -267,7 +278,21 @@ export default function DashboardScreen({
           <h2 className="text-xl font-semibold text-neutral-900">Tableau de bord</h2>
           <p className="text-sm text-neutral-500">Ton pipeline de prospection, de la recherche à la réponse.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <a
+            href={CAL_BOOKINGS_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50"
+          >
+            Mon agenda Cal.com
+          </a>
+          <button
+            onClick={copyCalLink}
+            className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50"
+          >
+            {linkCopied ? "Lien copié" : "Copier mon lien de rendez-vous"}
+          </button>
           <button
             onClick={() => setGuideOpen(true)}
             className="rounded-lg border border-fyn px-3 py-1.5 text-sm font-medium text-fyn-dark hover:bg-fyn-light"

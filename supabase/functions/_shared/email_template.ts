@@ -150,7 +150,11 @@ const RELANCE_OUVERTURE =
 
 const RELANCE_CONFRERES = "Certains de vos confrères l’utilisent déjà.";
 
-const RELANCE_CTA_FIN = "Plutôt cette semaine ou la semaine prochaine ? Répondez-moi simplement.";
+// Rendez-vous Cal.com proposé dans la relance : l'analyse de 15 minutes offerte.
+const RELANCE_CAL_LINK = "https://cal.com/fynup-consulting/15min";
+
+const RELANCE_CTA_FIN =
+  "Plutôt cette semaine ou la semaine prochaine ? Répondez-moi simplement, ou choisissez directement votre créneau¤:";
 
 const RELANCE_APPEL =
   "Vous pouvez aussi m’appeler au +41 76 506 28 71 pour plus d’informations. Je vous renseigne sans engagement.";
@@ -208,7 +212,8 @@ ${RELANCE_OUVERTURE}
 
 ${r.corps} ${RELANCE_CONFRERES}
 
-10¤minutes pour vous le montrer ${r.demo} ? ${RELANCE_CTA_FIN}
+15¤minutes offertes pour vous le montrer ${r.demo} ? ${RELANCE_CTA_FIN}
+${RELANCE_CAL_LINK}
 
 ${RELANCE_APPEL}
 
