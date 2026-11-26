@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { isToday } from "../lib/sending";
 import { supabase } from "../lib/supabase";
 import RelanceDialog from "./RelanceDialog";
 import {
@@ -23,11 +24,6 @@ const STATUT_STYLES: Record<Statut, { bar: string; pill: string }> = {
   répondu: { bar: "bg-emerald-500", pill: "bg-emerald-50 text-emerald-700" },
   ignoré: { bar: "bg-neutral-400", pill: "bg-neutral-100 text-neutral-400" },
 };
-
-interface Envoi {
-  date_envoi: string;
-  statut: string;
-}
 
 function fmtDate(iso: string | null): string {
   if (!iso) return "—";
@@ -82,9 +78,14 @@ function Card({ title, hint, children }: { title: string; hint?: string; childre
   );
 }
 
-export default function DashboardScreen({ onGoToLeads }: { onGoToLeads: () => void }) {
+export default function DashboardScreen({
+  onGoToLeads,
+  onGoToRelances,
+}: {
+  onGoToLeads: () => void;
+  onGoToRelances: () => void;
+}) {
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [envois, setEnvois] = useState<Envoi[]>([]);
   const [loading, setLoading] = useState(true);
   const [guideOpen, setGuideOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -95,12 +96,8 @@ export default function DashboardScreen({ onGoToLeads }: { onGoToLeads: () => vo
 
   async function load() {
     setLoading(true);
-    const [leadsRes, envoisRes] = await Promise.all([
-      supabase.from("leads").select("*").order("created_at", { ascending: false }),
-      supabase.from("envois").select("date_envoi, statut").eq("statut", "succès"),
-    ]);
-    setLeads((leadsRes.data as Lead[] | null) ?? []);
-    setEnvois((envoisRes.data as Envoi[] | null) ?? []);
+    const { data } = await supabase.from("leads").select("*").order("created_at", { ascending: false });
+    setLeads((data as Lead[] | null) ?? []);
     setLoading(false);
   }
 
@@ -120,7 +117,21 @@ export default function DashboardScreen({ onGoToLeads }: { onGoToLeads: () => vo
       .sort((a, b) => a.due - b.due);
     const parStatut = Object.fromEntries(STATUT_ORDER.map((s) => [s, 0])) as Record<Statut, number>;
     for (const l of leads) parStatut[l.statut_envoi] += 1;
-    return { prets, sansEmail, contactes, repondus, aRelancer, prochaines, parStatut };
+    const relances = leads.filter((l) => l.date_relance);
+    const premiersJour = leads.filter((l) => isToday(l.date_envoi)).length;
+    const relancesJour = leads.filter((l) => isToday(l.date_relance)).length;
+    return {
+      prets,
+      sansEmail,
+      contactes,
+      repondus,
+      aRelancer,
+      prochaines,
+      parStatut,
+      relances,
+      premiersJour,
+      relancesJour,
+    };
   }, [leads]);
 
   const secteurRows = useMemo(() => {
@@ -142,23 +153,29 @@ export default function DashboardScreen({ onGoToLeads }: { onGoToLeads: () => vo
       .filter((r) => r.total > 0);
   }, [leads]);
 
-  // Envois réussis des 14 derniers jours (premiers mails + relances).
+  // Envois des 14 derniers jours, premiers mails et relances séparés (d'après les dates des leads).
   const activity = useMemo(() => {
-    const days: { key: string; label: string; count: number }[] = [];
+    const days: { key: string; label: string; premiers: number; relances: number }[] = [];
     const today = new Date();
     for (let i = 13; i >= 0; i--) {
       const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
-      days.push({ key: dayKey(d), label: String(d.getDate()), count: 0 });
+      days.push({ key: dayKey(d), label: String(d.getDate()), premiers: 0, relances: 0 });
     }
     const index = new Map(days.map((d, i) => [d.key, i]));
-    for (const e of envois) {
-      const i = index.get(dayKey(new Date(e.date_envoi)));
-      if (i !== undefined) days[i].count += 1;
+    const add = (iso: string | null, kind: "premiers" | "relances") => {
+      if (!iso) return;
+      const i = index.get(dayKey(new Date(iso)));
+      if (i !== undefined) days[i][kind] += 1;
+    };
+    for (const l of leads) {
+      add(l.date_envoi, "premiers");
+      add(l.date_relance, "relances");
     }
     return days;
-  }, [envois]);
-  const activityMax = Math.max(1, ...activity.map((d) => d.count));
-  const activityTotal = activity.reduce((n, d) => n + d.count, 0);
+  }, [leads]);
+  const activityMax = Math.max(1, ...activity.map((d) => d.premiers + d.relances));
+  const premiersTotal = activity.reduce((n, d) => n + d.premiers, 0);
+  const relancesTotal = activity.reduce((n, d) => n + d.relances, 0);
 
   const tableRows = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -182,7 +199,6 @@ export default function DashboardScreen({ onGoToLeads }: { onGoToLeads: () => vo
     setLeads((prev) =>
       prev.map((l) => (l.id === lead.id ? { ...l, statut_envoi: "relance_envoyee", date_relance: now } : l)),
     );
-    setEnvois((prev) => [...prev, { date_envoi: now, statut: "succès" }]);
   }
 
   function relanceButton(lead: Lead) {
@@ -243,7 +259,7 @@ export default function DashboardScreen({ onGoToLeads }: { onGoToLeads: () => vo
         <>
           {/* Chiffres clés */}
           <div className="rounded-2xl bg-fyn-ink p-4 sm:p-5 dark:ring-1 dark:ring-white/10">
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
               <Kpi label="Leads" value={total} sub={`${stats.sansEmail.length} sans email`} />
               <Kpi label="À envoyer" value={stats.prets.length} sub="prêts, avec email" />
               <Kpi label="Contactés" value={stats.contactes.length} sub="premier mail envoyé" />
@@ -252,6 +268,12 @@ export default function DashboardScreen({ onGoToLeads }: { onGoToLeads: () => vo
                 value={stats.aRelancer.length}
                 sub="7 jours sans réponse"
                 accent={stats.aRelancer.length > 0}
+              />
+              <Kpi label="Relancés" value={stats.relances.length} sub="relances envoyées au total" />
+              <Kpi
+                label="Envoyés aujourd'hui"
+                value={stats.premiersJour + stats.relancesJour}
+                sub={`${stats.premiersJour} premier(s) mail(s) · ${stats.relancesJour} relance(s)`}
               />
               <Kpi label="Réponses" value={stats.repondus.length} sub="marquées « Répondu »" />
               <Kpi label="Taux de réponse" value={`${taux}%`} sub="sur les contactés" />
@@ -288,7 +310,17 @@ export default function DashboardScreen({ onGoToLeads }: { onGoToLeads: () => vo
             <Card title="À faire maintenant" hint={stats.aRelancer.length ? `${stats.aRelancer.length} relance(s)` : undefined}>
               <div className="space-y-4">
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-neutral-400">Relances à envoyer</p>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs font-medium uppercase tracking-wide text-neutral-400">Relances à envoyer</p>
+                    {stats.aRelancer.length > 0 && (
+                      <button
+                        onClick={onGoToRelances}
+                        className="rounded-lg bg-fyn px-3 py-1 text-xs font-semibold text-fyn-ink hover:bg-fyn-dark hover:text-white"
+                      >
+                        Relancer en groupe
+                      </button>
+                    )}
+                  </div>
                   {stats.aRelancer.length === 0 ? (
                     <p className="mt-1.5 text-sm text-neutral-500">Aucune relance en attente.</p>
                   ) : (
@@ -360,17 +392,41 @@ export default function DashboardScreen({ onGoToLeads }: { onGoToLeads: () => vo
 
           {/* Activité + secteurs */}
           <div className="grid gap-6 lg:grid-cols-2">
-            <Card title="Activité d'envoi" hint={`${activityTotal} mail(s) sur 14 jours`}>
+            <Card title="Activité d'envoi" hint="14 derniers jours">
+              <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-500">
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-fyn" />
+                  Premiers mails <strong className="text-neutral-900">{premiersTotal}</strong>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-amber-400" />
+                  Relances <strong className="text-neutral-900">{relancesTotal}</strong>
+                </span>
+              </div>
               <div className="flex h-32 items-end gap-1.5">
-                {activity.map((d) => (
-                  <div key={d.key} className="flex h-full flex-1 flex-col items-center justify-end gap-1" title={`${d.key} : ${d.count}`}>
-                    <span className="text-[10px] text-neutral-400">{d.count || ""}</span>
+                {activity.map((d) => {
+                  const count = d.premiers + d.relances;
+                  return (
                     <div
-                      className={`w-full rounded-t ${d.count ? "bg-fyn" : "bg-neutral-100"}`}
-                      style={{ height: `${d.count ? Math.max(6, (d.count / activityMax) * 80) : 3}%` }}
-                    />
-                  </div>
-                ))}
+                      key={d.key}
+                      className="flex h-full flex-1 flex-col items-center justify-end gap-1"
+                      title={`${d.key} : ${d.premiers} premier(s) mail(s), ${d.relances} relance(s)`}
+                    >
+                      <span className="text-[10px] text-neutral-400">{count || ""}</span>
+                      {count === 0 ? (
+                        <div className="w-full rounded-t bg-neutral-100" style={{ height: "3%" }} />
+                      ) : (
+                        <div
+                          className="flex w-full flex-col overflow-hidden rounded-t"
+                          style={{ height: `${Math.max(6, (count / activityMax) * 80)}%` }}
+                        >
+                          <div className="bg-amber-400" style={{ flexGrow: d.relances }} />
+                          <div className="bg-fyn" style={{ flexGrow: d.premiers }} />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
               <div className="mt-1 flex gap-1.5">
                 {activity.map((d) => (

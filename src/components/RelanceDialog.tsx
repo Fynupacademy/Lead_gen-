@@ -1,25 +1,7 @@
 import { useEffect, useState } from "react";
+import { readFunctionError } from "../lib/sending";
 import { supabase } from "../lib/supabase";
 import type { Lead } from "../lib/types";
-
-// Message d'erreur lisible : le corps de la réponse du serveur si on peut le lire, sinon le message
-// générique du client.
-async function readError(
-  error: { message?: string; context?: unknown } | null,
-  data: { error?: string } | null,
-): Promise<string> {
-  if (data?.error) return data.error;
-  const ctx = error?.context;
-  if (ctx instanceof Response) {
-    try {
-      const json = await ctx.clone().json();
-      if (json?.error) return String(json.error);
-    } catch {
-      // corps illisible : on retombe sur le message générique
-    }
-  }
-  return error?.message || "erreur inconnue";
-}
 
 // Relance d'un lead : on affiche d'abord le texte proposé (objet + corps), modifiable, puis on
 // l'envoie seulement au clic. Rien ne part à l'ouverture de la fenêtre.
@@ -45,7 +27,7 @@ export default function RelanceDialog({
       .then(async ({ data, error: invokeError }) => {
         if (cancelled) return;
         if (invokeError || !data?.body) {
-          setError(await readError(invokeError, data));
+          setError(await readFunctionError(invokeError, data));
         } else {
           setSubject(data.subject ?? "");
           setBody(data.body ?? "");
@@ -68,7 +50,7 @@ export default function RelanceDialog({
       body: { leadId: lead.id, subject, body },
     });
     if (invokeError || !data?.success) {
-      setError(await readError(invokeError, data));
+      setError(await readFunctionError(invokeError, data));
       setSending(false);
       return;
     }

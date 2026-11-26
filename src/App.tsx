@@ -4,7 +4,7 @@ import { supabase } from "./lib/supabase";
 import Login from "./components/Login";
 import SearchScreen from "./components/SearchScreen";
 import LeadsScreen from "./components/LeadsScreen";
-import SendScreen from "./components/SendScreen";
+import SendScreen, { type EnvoiMode } from "./components/SendScreen";
 import DashboardScreen from "./components/DashboardScreen";
 import ThemeToggle from "./components/ThemeToggle";
 
@@ -14,6 +14,7 @@ export default function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [screen, setScreen] = useState<Screen>("recherche");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [envoiMode, setEnvoiMode] = useState<EnvoiMode>("premiers");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -74,10 +75,25 @@ export default function App() {
       <main className="mx-auto max-w-5xl px-6 py-8">
         {screen === "recherche" && <SearchScreen onDone={() => setScreen("leads")} />}
         {screen === "leads" && <LeadsScreen selected={selected} onSelectedChange={setSelected} />}
-        {screen === "envoi" && (
-          <SendScreen selected={selected} onClearSelected={() => setSelected(new Set())} />
+        {/* Toujours monté : un envoi en cours continue quand on change d'onglet. */}
+        <div className={screen === "envoi" ? "" : "hidden"}>
+          <SendScreen
+            selected={selected}
+            onClearSelected={() => setSelected(new Set())}
+            active={screen === "envoi"}
+            mode={envoiMode}
+            onModeChange={setEnvoiMode}
+          />
+        </div>
+        {screen === "dashboard" && (
+          <DashboardScreen
+            onGoToLeads={() => setScreen("leads")}
+            onGoToRelances={() => {
+              setEnvoiMode("relances");
+              setScreen("envoi");
+            }}
+          />
         )}
-        {screen === "dashboard" && <DashboardScreen onGoToLeads={() => setScreen("leads")} />}
       </main>
     </div>
   );
