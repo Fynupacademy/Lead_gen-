@@ -37,6 +37,11 @@ function nb(text: string): string {
   return text.replaceAll("¤", String.fromCharCode(160));
 }
 
+// Moyen simple de refuser, dans le premier mail comme dans la relance. Une réponse « non » se
+// classe « Ne plus contacter » dans l'app.
+const NON_MERCI =
+  "Et si ce n’est pas pour vous, un simple «¤non merci¤» suffit¤: je ne vous recontacterai plus.";
+
 function build(accroche: string, outil: string, cta: string): string {
   return `Bonjour à toute l’équipe de {{NomEntreprise}},
 
@@ -52,6 +57,8 @@ Moins d’une minute de vidéo pour découvrir mes services¤:
 {{lien}}
 
 ${cta}
+
+${NON_MERCI}
 
 {{signature}}`;
 }
@@ -154,7 +161,7 @@ const RELANCE_CONFRERES = "Certains de vos confrères l’utilisent déjà.";
 const RELANCE_CAL_LINK = "https://cal.com/fynup-consulting/15min";
 
 const RELANCE_CTA_FIN =
-  "Plutôt cette semaine ou la semaine prochaine ? Répondez-moi simplement, ou choisissez directement votre créneau¤:";
+  "Plutôt cette semaine ou la semaine prochaine ? Répondez-moi simplement, ou choisissez directement votre créneau ici¤:";
 
 const RELANCE_APPEL =
   "Vous pouvez aussi m’appeler au +41 76 506 28 71 pour plus d’informations. Je vous renseigne sans engagement.";
@@ -167,7 +174,7 @@ const RELANCES: Record<Secteur, { subject: string; corps: string; demo: string }
     subject: "Votre devis dicté sur le chantier, facture QR comprise",
     corps:
       "Sur le chantier, vous dictez le devis avec votre voix. Il est prêt à envoyer, et la facture QR, aux normes suisses, suit en un clic. Fini les soirées devant l’ordinateur.",
-    demo: "sur un de vos vrais devis",
+    demo: "sur vos vrais devis",
   },
   restauration: {
     subject: "Vos marges du jour, sans attendre la fin du mois",
@@ -212,10 +219,12 @@ ${RELANCE_OUVERTURE}
 
 ${r.corps} ${RELANCE_CONFRERES}
 
-15¤minutes offertes pour vous le montrer ${r.demo} ? ${RELANCE_CTA_FIN}
+Je vous montre volontiers, ${r.demo}, ce que cela peut donner. ${RELANCE_CTA_FIN}
 ${RELANCE_CAL_LINK}
 
 ${RELANCE_APPEL}
+
+${NON_MERCI}
 
 ${RELANCE_SIGNATURE}`;
   return nb(text.replace(/—/g, ","));
