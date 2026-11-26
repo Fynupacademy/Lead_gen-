@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
 import RelanceDialog from "./RelanceDialog";
+import RetourBadge from "./RetourBadge";
+import RetourDialog from "./RetourDialog";
 import {
   DEFAULT_EMAIL_SUBJECT,
   SECTEUR_LABELS,
@@ -42,6 +44,7 @@ export default function LeadsScreen({
   const [previewSaving, setPreviewSaving] = useState(false);
   const [previewSaved, setPreviewSaved] = useState(false);
   const [relanceLead, setRelanceLead] = useState<Lead | null>(null);
+  const [retourLead, setRetourLead] = useState<Lead | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [editingEmailId, setEditingEmailId] = useState<string | null>(null);
   const [editingEmailValue, setEditingEmailValue] = useState("");
@@ -125,6 +128,13 @@ export default function LeadsScreen({
   async function changeStatut(id: string, statut: string) {
     setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, statut_envoi: statut as Lead["statut_envoi"] } : l)));
     await supabase.from("leads").update({ statut_envoi: statut }).eq("id", id);
+    // Réponse reçue : on propose tout de suite de la classer.
+    const lead = leads.find((l) => l.id === id);
+    if (statut === "répondu" && lead) setRetourLead({ ...lead, statut_envoi: "répondu" });
+  }
+
+  function onRetourSaved(saved: Lead) {
+    setLeads((prev) => prev.map((l) => (l.id === saved.id ? saved : l)));
   }
 
   function toggle(id: string) {
@@ -193,7 +203,11 @@ export default function LeadsScreen({
   }
 
   async function deleteLead(id: string) {
-    if (!confirm("Supprimer ce lead ?")) return;
+    const blocked = leads.find((l) => l.id === id)?.type_retour === "ne_plus_contacter";
+    const question = blocked
+      ? "Ce lead est marqué « ne plus contacter ». Si tu le supprimes, une future recherche pourrait le réintégrer. Supprimer quand même ?"
+      : "Supprimer ce lead ?";
+    if (!confirm(question)) return;
     setDeleting(true);
     await supabase.from("leads").delete().eq("id", id);
     setLeads((prev) => prev.filter((l) => l.id !== id));
@@ -208,7 +222,11 @@ export default function LeadsScreen({
     if (toDelete.length === 0) return;
     const contacted = toDelete.filter((l) => l.statut_envoi !== "en_attente").length;
     const warning = contacted > 0 ? `\n\nAttention : ${contacted} d’entre eux ont déjà été contactés.` : "";
-    if (!confirm(`Supprimer ces ${toDelete.length} leads ? Cette action est définitive.${warning}`)) return;
+    const blockedCount = toDelete.filter((l) => l.type_retour === "ne_plus_contacter").length;
+    const blockedWarning = blockedCount
+      ? `\n\n${blockedCount} sont marqués « ne plus contacter » : supprimés, ils pourraient revenir avec une future recherche.`
+      : "";
+    if (!confirm(`Supprimer ces ${toDelete.length} leads ? Cette action est définitive.${warning}${blockedWarning}`)) return;
     setDeleting(true);
     const ids = toDelete.map((l) => l.id);
     const deleted = new Set<string>();
@@ -420,7 +438,7 @@ export default function LeadsScreen({
                     <td className="px-3 py-2 text-neutral-600">{SECTEUR_LABELS[lead.secteur] ?? lead.secteur ?? "?"}</td>
                     <td className="px-3 py-2 text-neutral-600">{SERVICE_LABELS[lead.service_cible] ?? lead.service_cible}</td>
                     <td className="px-3 py-2">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <select
                           value={lead.statut_envoi}
                           onChange={(e) => changeStatut(lead.id, e.target.value)}
@@ -430,6 +448,7 @@ export default function LeadsScreen({
                             <option key={k} value={k}>{v}</option>
                           ))}
                         </select>
+                        <RetourBadge lead={lead} onClick={() => setRetourLead(lead)} />
                         {isRelanceEligible(lead) && (
                           <button
                             onClick={() => setRelanceLead(lead)}
@@ -542,6 +561,9 @@ export default function LeadsScreen({
                         <option key={k} value={k}>{v}</option>
                       ))}
                     </select>
+                    <div className="mt-2">
+                      <RetourBadge lead={lead} onClick={() => setRetourLead(lead)} />
+                    </div>
                     {isRelanceEligible(lead) && (
                       <button
                         onClick={() => setRelanceLead(lead)}
@@ -560,6 +582,10 @@ export default function LeadsScreen({
 
       {relanceLead && (
         <RelanceDialog lead={relanceLead} onClose={() => setRelanceLead(null)} onSent={onRelanceSent} />
+      )}
+
+      {retourLead && (
+        <RetourDialog lead={retourLead} onClose={() => setRetourLead(null)} onSaved={onRetourSaved} />
       )}
 
       {previewLead && (

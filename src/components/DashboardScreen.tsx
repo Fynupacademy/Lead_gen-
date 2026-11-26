@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { RETOUR_LABELS, RETOUR_ORDER, RETOUR_STYLES, isPositive } from "../lib/retours";
 import { isToday } from "../lib/sending";
 import { supabase } from "../lib/supabase";
 import RelanceDialog from "./RelanceDialog";
+import RetourBadge from "./RetourBadge";
+import RetourDialog from "./RetourDialog";
 import {
   RELANCE_DELAI_MS,
   SECTEUR_LABELS,
@@ -93,6 +96,7 @@ export default function DashboardScreen({
   const [secteurFilter, setSecteurFilter] = useState("tous");
   const [rowsShown, setRowsShown] = useState(ROWS_STEP);
   const [relanceLead, setRelanceLead] = useState<Lead | null>(null);
+  const [retourLead, setRetourLead] = useState<Lead | null>(null);
 
   async function load() {
     setLoading(true);
@@ -118,6 +122,16 @@ export default function DashboardScreen({
     const parStatut = Object.fromEntries(STATUT_ORDER.map((s) => [s, 0])) as Record<Statut, number>;
     for (const l of leads) parStatut[l.statut_envoi] += 1;
     const relances = leads.filter((l) => l.date_relance);
+    const positifs = repondus.filter((l) => isPositive(l.type_retour)).length;
+    const aClasser = repondus.filter((l) => !l.type_retour);
+    const parRetour = RETOUR_ORDER.map((type) => ({
+      type,
+      count: repondus.filter((l) => l.type_retour === type).length,
+    }));
+    const startOfDay = new Date().setHours(0, 0, 0, 0);
+    const rendezVous = leads
+      .filter((l) => l.date_rdv && new Date(l.date_rdv).getTime() >= startOfDay)
+      .sort((a, b) => (a.date_rdv! < b.date_rdv! ? -1 : 1));
     const premiersJour = leads.filter((l) => isToday(l.date_envoi)).length;
     const relancesJour = leads.filter((l) => isToday(l.date_relance)).length;
     return {
@@ -129,6 +143,10 @@ export default function DashboardScreen({
       prochaines,
       parStatut,
       relances,
+      positifs,
+      aClasser,
+      parRetour,
+      rendezVous,
       premiersJour,
       relancesJour,
     };
@@ -141,7 +159,9 @@ export default function DashboardScreen({
         const group = leads.filter((l) => (l.secteur || "?") === k);
         const contactes = group.filter((l) => l.date_envoi).length;
         const repondus = group.filter((l) => l.statut_envoi === "répondu").length;
+        const positifs = group.filter((l) => l.statut_envoi === "répondu" && isPositive(l.type_retour)).length;
         return {
+          positifs,
           key: k,
           label: SECTEUR_LABELS[k] ?? (k === "?" ? "Non classé" : k),
           total: group.length,
@@ -192,6 +212,13 @@ export default function DashboardScreen({
   async function changeStatut(id: string, statut: Statut) {
     setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, statut_envoi: statut } : l)));
     await supabase.from("leads").update({ statut_envoi: statut }).eq("id", id);
+    // Réponse reçue : on propose tout de suite de la classer.
+    const lead = leads.find((l) => l.id === id);
+    if (statut === "répondu" && lead) setRetourLead({ ...lead, statut_envoi: "répondu" });
+  }
+
+  function onRetourSaved(saved: Lead) {
+    setLeads((prev) => prev.map((l) => (l.id === saved.id ? saved : l)));
   }
 
   function onRelanceSent(lead: Lead) {
@@ -214,6 +241,7 @@ export default function DashboardScreen({
 
   function statutSelect(lead: Lead) {
     return (
+      <div className="flex flex-col items-start gap-1">
       <select
         value={lead.statut_envoi}
         onChange={(e) => changeStatut(lead.id, e.target.value as Statut)}
@@ -223,6 +251,8 @@ export default function DashboardScreen({
           <option key={s} value={s}>{STATUT_LABELS[s]}</option>
         ))}
       </select>
+      <RetourBadge lead={lead} onClick={() => setRetourLead(lead)} />
+      </div>
     );
   }
 
@@ -275,7 +305,7 @@ export default function DashboardScreen({
                 value={stats.premiersJour + stats.relancesJour}
                 sub={`${stats.premiersJour} premier(s) mail(s) · ${stats.relancesJour} relance(s)`}
               />
-              <Kpi label="Réponses" value={stats.repondus.length} sub="marquées « Répondu »" />
+              <Kpi label="Réponses" value={stats.repondus.length} sub={`dont ${stats.positifs} positive(s)`} />
               <Kpi label="Taux de réponse" value={`${taux}%`} sub="sur les contactés" />
             </div>
 
@@ -445,7 +475,7 @@ export default function DashboardScreen({
                       <div className="flex items-baseline justify-between text-sm">
                         <span className="font-medium text-neutral-900">{r.label}</span>
                         <span className="text-xs text-neutral-500">
-                          {r.total} lead(s) · {r.contactes} contacté(s) · {r.repondus} réponse(s)
+                          {r.contactes} contacté(s) · {r.repondus} réponse(s) · {r.positifs} positive(s)
                         </span>
                       </div>
                       <div className="mt-1.5 flex items-center gap-2">
@@ -454,6 +484,84 @@ export default function DashboardScreen({
                         </div>
                         <span className="w-9 text-right text-xs font-semibold text-neutral-700">{r.taux}%</span>
                       </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+          </div>
+
+          {/* Retours + rendez-vous */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card title="Retours reçus" hint={`${stats.repondus.length} réponse(s)`}>
+              {stats.repondus.length === 0 ? (
+                <p className="text-sm text-neutral-500">
+                  Aucune réponse pour l'instant. Quand un prospect répond, passe-le en « Répondu » dans le suivi.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {stats.parRetour.map(({ type, count }) => (
+                    <div key={type}>
+                      <div className="flex items-baseline justify-between text-sm">
+                        <span className="text-neutral-900">{RETOUR_LABELS[type]}</span>
+                        <span className="text-xs text-neutral-500">
+                          <strong className="text-neutral-900">{count}</strong> · {pct(count, stats.repondus.length)}%
+                        </span>
+                      </div>
+                      <div className="mt-1 h-2 overflow-hidden rounded-full bg-neutral-100">
+                        <div
+                          className={`h-full rounded-full ${RETOUR_STYLES[type].bar}`}
+                          style={{ width: `${pct(count, stats.repondus.length)}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                  {stats.aClasser.length > 0 && (
+                    <div className="rounded-lg bg-neutral-50 px-3 py-2.5">
+                      <p className="text-xs font-medium uppercase tracking-wide text-neutral-400">
+                        {stats.aClasser.length} réponse(s) à classer
+                      </p>
+                      <ul className="mt-1.5 space-y-1.5">
+                        {stats.aClasser.slice(0, 5).map((l) => (
+                          <li key={l.id} className="flex items-center justify-between gap-3">
+                            <span className="truncate text-sm text-neutral-900">{l.nom}</span>
+                            <RetourBadge lead={l} onClick={() => setRetourLead(l)} />
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </Card>
+
+            <Card title="Prochains rendez-vous" hint="rendez-vous et démonstrations">
+              {stats.rendezVous.length === 0 ? (
+                <p className="text-sm text-neutral-500">
+                  Rien de prévu. La date se saisit en classant un retour « rendez-vous » ou « démonstration ».
+                </p>
+              ) : (
+                <ul className="divide-y divide-neutral-100">
+                  {stats.rendezVous.slice(0, 6).map((l) => (
+                    <li key={l.id} className="flex items-center justify-between gap-3 py-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-neutral-900">{l.nom}</p>
+                        <p className="truncate text-xs text-neutral-400">
+                          {[l.telephone, l.email].filter(Boolean).join(" · ")}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setRetourLead(l)}
+                        className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700"
+                      >
+                        {l.type_retour === "demo" ? "Démo" : "RDV"} ·{" "}
+                        {new Date(l.date_rdv!).toLocaleString("fr-CH", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </button>
                     </li>
                   ))}
                 </ul>
@@ -607,6 +715,10 @@ export default function DashboardScreen({
         <RelanceDialog lead={relanceLead} onClose={() => setRelanceLead(null)} onSent={onRelanceSent} />
       )}
 
+      {retourLead && (
+        <RetourDialog lead={retourLead} onClose={() => setRetourLead(null)} onSaved={onRetourSaved} />
+      )}
+
       {/* Guide */}
       {guideOpen && (
         <div className="fixed inset-0 z-20 flex justify-end bg-black/30" onClick={() => setGuideOpen(false)}>
@@ -626,7 +738,7 @@ export default function DashboardScreen({
                 ["Leads", "Tu ouvres l'aperçu du mail (clic sur le nom), tu le corriges si besoin, puis tu coches les leads à contacter."],
                 ["Envoi", "Tu lances l'envoi. Les mails partent un par un, avec une pause entre chaque, dans la limite du jour."],
                 ["Relance", "7 jours après l'envoi, sans réponse, la relance apparaît dans « À faire maintenant ». Un clic, un seul rappel par lead."],
-                ["Réponses", "Quand un prospect répond, passe-le en « Répondu » dans le suivi. Il sort alors des relances et compte dans ton taux de réponse."],
+                ["Réponses", "Quand un prospect répond, passe-le en « Répondu » et choisis le type de retour. Il sort des relances ; « ne plus contacter » bloque tout nouvel envoi."],
               ].map(([t, d], i) => (
                 <li key={t} className="flex gap-3">
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-fyn text-xs font-semibold text-white">

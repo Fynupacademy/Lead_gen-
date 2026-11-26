@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { blockedEmails, isBlocked } from "../lib/retours";
 import { readFunctionError } from "../lib/sending";
 import { supabase } from "../lib/supabase";
 import type { Lead } from "../lib/types";
@@ -22,21 +23,32 @@ export default function RelanceDialog({
 
   useEffect(() => {
     let cancelled = false;
-    supabase.functions
-      .invoke("send-relance", { body: { leadId: lead.id, preview: true } })
-      .then(async ({ data, error: invokeError }) => {
-        if (cancelled) return;
-        if (invokeError || !data?.body) {
-          setError(await readFunctionError(invokeError, data));
-        } else {
-          setSubject(data.subject ?? "");
-          setBody(data.body ?? "");
-        }
+    async function loadPreview() {
+      // Adresse marquée « ne plus contacter » : on n'affiche pas de texte, donc rien à envoyer.
+      const refused = await supabase.from("leads").select("email, type_retour").eq("type_retour", "ne_plus_contacter");
+      if (cancelled) return;
+      if (isBlocked(lead, blockedEmails((refused.data as Lead[] | null) ?? []))) {
+        setError("Cette adresse est marquée « ne plus contacter ».");
         setLoading(false);
+        return;
+      }
+      const { data, error: invokeError } = await supabase.functions.invoke("send-relance", {
+        body: { leadId: lead.id, preview: true },
       });
+      if (cancelled) return;
+      if (invokeError || !data?.body) {
+        setError(await readFunctionError(invokeError, data));
+      } else {
+        setSubject(data.subject ?? "");
+        setBody(data.body ?? "");
+      }
+      setLoading(false);
+    }
+    loadPreview();
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lead.id]);
 
   async function send() {

@@ -1,3 +1,5 @@
+import type { TypeRetour } from "./retours";
+
 export interface Lead {
   id: string;
   nom: string;
@@ -17,6 +19,9 @@ export interface Lead {
   statut_envoi: "en_attente" | "envoyé" | "répondu" | "ignoré" | "relance_envoyee";
   date_envoi: string | null;
   date_relance: string | null;
+  type_retour: TypeRetour | null;
+  note_retour: string | null;
+  date_rdv: string | null;
   email_override_subject: string;
   email_override_body: string;
   created_at: string;

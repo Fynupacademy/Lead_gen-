@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { blockedEmails, isBlocked } from "../lib/retours";
 import { supabase } from "../lib/supabase";
 import { isToday, randomDelayMs, readFunctionError, waitBetweenSends } from "../lib/sending";
 import { SECTEUR_LABELS, isRelanceEligible, type Lead } from "../lib/types";
@@ -57,8 +58,9 @@ export default function RelanceBatch({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
 
+  const refusedEmails = blockedEmails(leads);
   const eligible = leads
-    .filter((l) => isRelanceEligible(l) && l.email)
+    .filter((l) => isRelanceEligible(l) && l.email && !isBlocked(l, refusedEmails))
     .sort((a, b) => (b.score_ia ?? 0) - (a.score_ia ?? 0) || (a.date_envoi! < b.date_envoi! ? -1 : 1));
   const shown = eligible.filter((l) => secteur === "tous" || l.secteur === secteur);
   const checked = shown.filter((l) => !excluded.has(l.id));

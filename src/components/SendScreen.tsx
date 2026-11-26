@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
+import { blockedEmails, isBlocked } from "../lib/retours";
 import { randomDelayMs, waitBetweenSends } from "../lib/sending";
 import type { Lead } from "../lib/types";
 import RelanceBatch from "./RelanceBatch";
@@ -40,6 +41,7 @@ export default function SendScreen({
   onModeChange: (mode: EnvoiMode) => void;
 }) {
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [blocked, setBlocked] = useState<Set<string>>(new Set());
   const [dailyLimit, setDailyLimit] = useState(40);
   const [minDelay, setMinDelay] = useState(60);
   const [maxDelay, setMaxDelay] = useState(180);
@@ -57,7 +59,11 @@ export default function SendScreen({
       setLeads([]);
       return;
     }
-    const { data } = await supabase.from("leads").select("*").in("id", Array.from(selected));
+    const [{ data }, refused] = await Promise.all([
+      supabase.from("leads").select("*").in("id", Array.from(selected)),
+      supabase.from("leads").select("email, type_retour").eq("type_retour", "ne_plus_contacter"),
+    ]);
+    setBlocked(blockedEmails((refused.data as Lead[] | null) ?? []));
     setLeads((data as Lead[] | null) ?? []);
   }
 
@@ -89,7 +95,7 @@ export default function SendScreen({
 
   // Seuls les leads en attente et avec une adresse sont envoyés ; les autres sont ignorés (ils
   // peuvent avoir été sélectionnés pour être supprimés).
-  const sendable = leads.filter((l) => l.statut_envoi === "en_attente" && l.email);
+  const sendable = leads.filter((l) => l.statut_envoi === "en_attente" && l.email && !isBlocked(l, blocked));
 
   async function handleStart() {
     const toSend = sendable.slice(0, dailyLimit);
@@ -169,7 +175,7 @@ export default function SendScreen({
           {leads.length > sendable.length && !running && (
             <span className="text-amber-700">
               {" "}
-              {leads.length - sendable.length} ignoré(s) : déjà contactés ou sans email.
+              {leads.length - sendable.length} ignoré(s) : déjà contactés, sans email ou « ne plus contacter ».
             </span>
           )}
         </p>
